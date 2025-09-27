@@ -846,10 +846,10 @@ export default function App() {
       let x = mapW / 2 - projected[0] * safeZoom;
       let y = mapH / 2 - projected[1] * safeZoom;
 
-      if (x + safeZoom * minX > mapW) x = mapW - safeZoom * minX;
-      if (x + safeZoom * maxX < 0) x = -safeZoom * maxX;
-      if (y + safeZoom * minY > mapH) y = mapH - safeZoom * minY;
-      if (y + safeZoom * maxY < 0) y = -safeZoom * maxY;
+      if (x + safeZoom * minX < 0) x = -safeZoom * minX;
+      if (x + safeZoom * maxX > mapW) x = mapW - safeZoom * maxX;
+      if (y + safeZoom * minY < 0) y = -safeZoom * minY;
+      if (y + safeZoom * maxY > mapH) y = mapH - safeZoom * maxY;
 
       const adjustedProjected = [(mapW / 2 - x) / safeZoom, (mapH / 2 - y) / safeZoom];
       const adjusted = mapProjection.invert(adjustedProjected);
@@ -907,10 +907,10 @@ export default function App() {
       let nextX = position.x ?? 0;
       let nextY = position.y ?? 0;
 
-      if (nextX + safeZoom * minX > mapW) nextX = mapW - safeZoom * minX;
-      if (nextX + safeZoom * maxX < 0) nextX = -safeZoom * maxX;
-      if (nextY + safeZoom * minY > mapH) nextY = mapH - safeZoom * minY;
-      if (nextY + safeZoom * maxY < 0) nextY = -safeZoom * maxY;
+      if (nextX + safeZoom * minX < 0) nextX = -safeZoom * minX;
+      if (nextX + safeZoom * maxX > mapW) nextX = mapW - safeZoom * maxX;
+      if (nextY + safeZoom * minY < 0) nextY = -safeZoom * minY;
+      if (nextY + safeZoom * maxY > mapH) nextY = mapH - safeZoom * maxY;
 
       const projectedX = (mapW / 2 - nextX) / safeZoom;
       const projectedY = (mapH / 2 - nextY) / safeZoom;
