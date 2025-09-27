@@ -417,6 +417,7 @@ export default function App() {
   const [codeA, setCodeA] = useState(null);
   const [codeB, setCodeB] = useState(null);
   const [hoverName, setHoverName] = useState("");
+  const [isDraggingMap, setIsDraggingMap] = useState(false);
   const [filter, setFilter] = useState("");
   const [colorMetric, setColorMetric] = useState("gdp_per_capita_usd");
   const [colorScaleMode, setColorScaleMode] = useState("quantile");
@@ -765,6 +766,7 @@ export default function App() {
   const [center, setCenter] = useState([0, 0]);
   const zoomRef = useRef(zoom);
   const centerRef = useRef(center);
+  const draggingRef = useRef(false);
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
@@ -922,6 +924,21 @@ export default function App() {
       setView(derivedCenter, safeZoom);
     },
     [mapDragBounds, mapProjection, mapW, mapH, setView]
+  );
+
+  const handleMoveStart = useCallback(() => {
+    draggingRef.current = true;
+    setIsDraggingMap(true);
+    setHoverName("");
+  }, []);
+
+  const handleMoveOrZoomEnd = useCallback(
+    (_, position) => {
+      draggingRef.current = false;
+      setIsDraggingMap(false);
+      applyPosition(position);
+    },
+    [applyPosition]
   );
 
   useEffect(() => {
@@ -1153,7 +1170,7 @@ export default function App() {
                         </Button>
                       </div>
 
-                      {hoverName && (
+                      {hoverName && !isDraggingMap && (
                         <div className="absolute left-3 top-3 z-10 px-3 py-1.5 rounded-lg bg-white/95 shadow-md ring-1 ring-slate-200 text-xs font-medium text-slate-700 pointer-events-none">
                           {hoverName}
                         </div>
@@ -1163,8 +1180,9 @@ export default function App() {
                         <ZoomableGroup
                           zoom={zoom}
                           center={center}
-                          onMoveEnd={(_, position) => applyPosition(position)}
-                          onZoomEnd={(_, position) => applyPosition(position)}
+                          onMoveStart={handleMoveStart}
+                          onMoveEnd={handleMoveOrZoomEnd}
+                          onZoomEnd={handleMoveOrZoomEnd}
                           minZoom={1}
                           maxZoom={8}
                           translateExtent={mapDragBounds}
@@ -1189,16 +1207,29 @@ export default function App() {
                                     <Geography
                                       key={geo.rsmKey}
                                       geography={geo}
-                                      onMouseEnter={() =>
-                                        disabled ? setHoverName("") : setHoverName(getNameProp(geo.properties))
-                                      }
+                                      onMouseEnter={() => {
+                                        if (disabled || draggingRef.current || isDraggingMap) {
+                                          setHoverName("");
+                                          return;
+                                        }
+                                        setHoverName(getNameProp(geo.properties));
+                                      }}
                                       onMouseLeave={() => setHoverName("")}
-                                      onClick={() => !disabled && setSelection(iso3)}
+                                      onClick={() => {
+                                        if (disabled || draggingRef.current || isDraggingMap) return;
+                                        setSelection(iso3);
+                                      }}
                                       onKeyDown={(event) => onGeoKeyDown(event, iso3, disabled)}
                                       tabIndex={disabled ? -1 : 0}
                                       style={{
-                                        default: { outline: "none", pointerEvents: disabled ? "none" : "auto" },
-                                        hover: { outline: "none", filter: disabled ? undefined : "brightness(0.95)" },
+                                        default: {
+                                          outline: "none",
+                                          pointerEvents: disabled || isDraggingMap ? "none" : "auto",
+                                        },
+                                        hover: {
+                                          outline: "none",
+                                          filter: disabled || isDraggingMap ? undefined : "brightness(0.95)",
+                                        },
                                         pressed: { outline: "none" },
                                       }}
                                       fill={fillColor}
