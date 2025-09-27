@@ -422,6 +422,7 @@ export default function App() {
   const [filter, setFilter] = useState("");
   const [colorMetric, setColorMetric] = useState("gdp_per_capita_usd");
   const [colorScaleMode, setColorScaleMode] = useState("quantile");
+  const [worldFC, setWorldFC] = useState(null);
 
   // -------------------------------------------------------------------------
   // Fetch World Bank metrics + GeoJSON boundaries
@@ -448,10 +449,23 @@ export default function App() {
       const wbNameMap = new Map(wbCountries.map((country) => [country.iso3, country.country]));
 
       // 2. GeoJSON boundary data for the world map.
-      const geoResponse = await fetch(geoUrl);
+      const geoResponse = await fetch(geoUrl, { cache: "no-store" });
+      if (!geoResponse.ok) {
+        throw new Error(
+          `Failed to load world boundaries (status ${geoResponse.status} ${geoResponse.statusText || ""}).`.trim()
+        );
+      }
+
       const geoJson = await geoResponse.json();
-      const features = geoJson?.features || [];
-      const featureCollection = { type: "FeatureCollection", features };
+      if (!Array.isArray(geoJson?.features)) {
+        throw new Error("GeoJSON response did not include a features array.");
+      }
+
+      const featureCollection =
+        geoJson?.type === "FeatureCollection"
+          ? geoJson
+          : { type: "FeatureCollection", features: geoJson.features };
+      const features = featureCollection.features;
 
       const geoCountries = features
         .map((feature) => {
@@ -838,8 +852,6 @@ export default function App() {
   const containerRef = useRef(null);
   const [mapW, setMapW] = useState(BASE_W);
   const [mapH, setMapH] = useState(BASE_H);
-  const [worldFC, setWorldFC] = useState(null);
-
   const computedScale = useMemo(() => {
     try {
       if (worldFC && mapW && mapH) {
@@ -940,90 +952,98 @@ export default function App() {
 
               <div className="border rounded-2xl overflow-hidden">
                 <div className="relative w-full" ref={containerRef}>
-                  <div className="absolute z-10 right-2 top-2 flex flex-col gap-2">
-                    <Button variant="outline" onClick={() => setZoom((z) => Math.min(z * 1.5, 8))}>
-                      +
-                    </Button>
-                    <Button variant="outline" onClick={() => setZoom((z) => Math.max(z / 1.5, 1))}>
-                      -
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setZoom(1);
-                        setCenter([0, 0]);
-                      }}
-                    >
-                      Reset
-                    </Button>
-                  </div>
+                  {worldFC ? (
+                    <>
+                      <div className="absolute z-10 right-2 top-2 flex flex-col gap-2">
+                        <Button variant="outline" onClick={() => setZoom((z) => Math.min(z * 1.5, 8))}>
+                          +
+                        </Button>
+                        <Button variant="outline" onClick={() => setZoom((z) => Math.max(z / 1.5, 1))}>
+                          -
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setZoom(1);
+                            setCenter([0, 0]);
+                          }}
+                        >
+                          Reset
+                        </Button>
+                      </div>
 
-                  {hoverName && (
-                    <div className="absolute left-3 top-3 z-10 px-3 py-1.5 rounded-lg bg-white/95 shadow-md ring-1 ring-slate-200 text-xs font-medium text-slate-700 pointer-events-none">
-                      {hoverName}
+                      {hoverName && (
+                        <div className="absolute left-3 top-3 z-10 px-3 py-1.5 rounded-lg bg-white/95 shadow-md ring-1 ring-slate-200 text-xs font-medium text-slate-700 pointer-events-none">
+                          {hoverName}
+                        </div>
+                      )}
+
+                      <ComposableMap
+                        width={mapW}
+                        height={mapH}
+                        projection="geoEqualEarth"
+                        projectionConfig={{ scale: computedScale }}
+                      >
+                        <ZoomableGroup
+                          zoom={zoom}
+                          center={center}
+                          onMoveEnd={({ zoom: nextZoom, coordinates }) => {
+                            setZoom(nextZoom);
+                            setCenter(coordinates);
+                          }}
+                          minZoom={1}
+                          maxZoom={8}
+                          translateExtent={[[0, 0], [mapW, mapH]]}
+                        >
+                          <Geographies geography={worldFC?.features ?? []}>
+                            {({ geographies }) => (
+                              <>
+                                {geographies.map((geo) => {
+                                  const iso3 = getIso3(geo.properties);
+                                  const disabled = !iso3;
+                                  const row = !disabled ? dataByIso3.get(iso3) : null;
+                                  const isSelected = !disabled && (iso3 === codeA || iso3 === codeB);
+                                  const fillColor = disabled
+                                    ? whiteBlue(0.05)
+                                    : isSelected
+                                    ? iso3 === codeA
+                                      ? "#10b981"
+                                      : "#ef4444"
+                                    : colorFor(row?.[colorMetric]);
+
+                                  return (
+                                    <Geography
+                                      key={geo.rsmKey}
+                                      geography={geo}
+                                      onMouseEnter={() =>
+                                        disabled ? setHoverName("") : setHoverName(getNameProp(geo.properties))
+                                      }
+                                      onMouseLeave={() => setHoverName("")}
+                                      onClick={() => !disabled && setSelection(iso3)}
+                                      onKeyDown={(event) => onGeoKeyDown(event, iso3, disabled)}
+                                      tabIndex={disabled ? -1 : 0}
+                                      style={{
+                                        default: { outline: "none", pointerEvents: disabled ? "none" : "auto" },
+                                        hover: { outline: "none", filter: disabled ? undefined : "brightness(0.95)" },
+                                        pressed: { outline: "none" },
+                                      }}
+                                      fill={fillColor}
+                                      stroke="#CBD5E1"
+                                      strokeWidth={0.6}
+                                    />
+                                  );
+                                })}
+                            </>
+                          )}
+                        </Geographies>
+                      </ZoomableGroup>
+                    </ComposableMap>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center py-24 text-sm text-slate-500">
+                      Loading map data…
                     </div>
                   )}
-
-                  <ComposableMap
-                    width={mapW}
-                    height={mapH}
-                    projection="geoEqualEarth"
-                    projectionConfig={{ scale: computedScale }}
-                  >
-                    <ZoomableGroup
-                      zoom={zoom}
-                      center={center}
-                      onMoveEnd={({ zoom: nextZoom, coordinates }) => {
-                        setZoom(nextZoom);
-                        setCenter(coordinates);
-                      }}
-                      minZoom={1}
-                      maxZoom={8}
-                      translateExtent={[[0, 0], [mapW, mapH]]}
-                    >
-                      <Geographies geography={geoUrl}>
-                        {({ geographies }) => (
-                          <>
-                            {geographies.map((geo) => {
-                              const iso3 = getIso3(geo.properties);
-                              const disabled = !iso3;
-                              const row = !disabled ? dataByIso3.get(iso3) : null;
-                              const isSelected = !disabled && (iso3 === codeA || iso3 === codeB);
-                              const fillColor = disabled
-                                ? whiteBlue(0.05)
-                                : isSelected
-                                ? iso3 === codeA
-                                  ? "#10b981"
-                                  : "#ef4444"
-                                : colorFor(row?.[colorMetric]);
-
-                              return (
-                                <Geography
-                                  key={geo.rsmKey}
-                                  geography={geo}
-                                  onMouseEnter={() =>
-                                    disabled ? setHoverName("") : setHoverName(getNameProp(geo.properties))
-                                  }
-                                  onMouseLeave={() => setHoverName("")}
-                                  onClick={() => !disabled && setSelection(iso3)}
-                                  onKeyDown={(event) => onGeoKeyDown(event, iso3, disabled)}
-                                  tabIndex={disabled ? -1 : 0}
-                                  style={{
-                                    default: { outline: "none", pointerEvents: disabled ? "none" : "auto" },
-                                    hover: { outline: "none", filter: disabled ? undefined : "brightness(0.95)" },
-                                    pressed: { outline: "none" },
-                                  }}
-                                  fill={fillColor}
-                                  stroke="#CBD5E1"
-                                  strokeWidth={0.6}
-                                />
-                              );
-                            })}
-                          </>
-                        )}
-                      </Geographies>
-                    </ZoomableGroup>
-                  </ComposableMap>
                 </div>
               </div>
 
