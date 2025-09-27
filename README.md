@@ -2,6 +2,8 @@
 
 An interactive React application for comparing countries side by side using the latest figures from the World Bank. A responsive world map drives the experience: click two countries (or use the search box) to populate a comparison table that highlights absolute and percentage differences across economic, demographic, and sustainability indicators. The map can be recolored by any metric, making it easy to spot regional patterns at a glance.
 
+![Screenshot of the Country Comparator interface showing a choropleth map, country comparison panel, and metrics table.](public/country-comparator.png)
+
 ## Features
 
 - **Interactive world map** powered by [react-simple-maps](https://www.react-simple-maps.io/) and D3, with smooth zooming, panning, reset controls, and accessible keyboard navigation.
