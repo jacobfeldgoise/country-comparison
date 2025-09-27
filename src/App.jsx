@@ -654,25 +654,31 @@ const StatRow = ({
 
   const highlightA = relationship === "A" ? "bg-emerald-50/30" : relationship === "B" ? "bg-rose-50/30" : "";
   const highlightB = relationship === "B" ? "bg-emerald-50/30" : relationship === "A" ? "bg-rose-50/30" : "";
+  const displayA = fmt(valueA);
+  const displayB = fmt(valueB);
 
   return (
     <tr className="border-b last:border-0">
-      <td className="py-2 pr-2 text-xs sm:text-sm text-slate-500">{metricLabel}</td>
-      <td className={`py-2 pr-2 font-medium whitespace-nowrap ${highlightA}`}>
-        <span className="inline-flex items-center gap-1 align-middle">
-          {fmt(valueA)}
+      <td className="py-2 pr-3 text-xs sm:text-sm text-slate-500 align-top">{metricLabel}</td>
+      <td className={`py-2 pr-2 font-medium ${highlightA}`}>
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="truncate" title={displayA}>
+            {displayA}
+          </span>
           {relationship === "A" && icon("higher")}
           {relationship === "B" && icon("lower")}
-        </span>
+        </div>
       </td>
-      <td className={`py-2 pr-2 font-medium whitespace-nowrap ${highlightB}`}>
-        <span className="inline-flex items-center gap-1 align-middle">
-          {fmt(valueB)}
+      <td className={`py-2 pr-2 font-medium ${highlightB}`}>
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="truncate" title={displayB}>
+            {displayB}
+          </span>
           {relationship === "B" && icon("higher")}
           {relationship === "A" && icon("lower")}
-        </span>
+        </div>
       </td>
-      <td className="py-2 pl-2 min-w-[6rem] sm:min-w-[7rem]">
+      <td className="py-2 pl-2 align-top">
         <DiffCell a={valueA} b={valueB} suffix={diffSuffix} />
       </td>
     </tr>
@@ -1823,19 +1829,27 @@ export default function App() {
                 Data from <span className="font-medium">{defaultYear ?? "—"}</span> unless otherwise specified
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm table-fixed">
+                  <colgroup>
+                    <col className="w-[38%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[18%]" />
+                  </colgroup>
                   <thead>
                     <tr className="text-left text-xs text-slate-500 border-b">
                       <th className="py-2 pr-2 font-medium">Metric</th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap min-w-[6.5rem] sm:min-w-[7.5rem]">
-                        {dataA?.country || "—"}
+                      <th className="py-2 pr-2 font-medium">
+                        <span className="block truncate" title={dataA?.country || "—"}>
+                          {dataA?.country || "—"}
+                        </span>
                       </th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap min-w-[6.5rem] sm:min-w-[7.5rem]">
-                        {dataB?.country || "—"}
+                      <th className="py-2 pr-2 font-medium">
+                        <span className="block truncate" title={dataB?.country || "—"}>
+                          {dataB?.country || "—"}
+                        </span>
                       </th>
-                      <th className="py-2 pl-2 font-medium whitespace-nowrap text-right min-w-[6rem] sm:min-w-[7rem]">
-                        Δ / %
-                      </th>
+                      <th className="py-2 pl-2 font-medium text-right">Δ / %</th>
                     </tr>
                   </thead>
                   <tbody>
