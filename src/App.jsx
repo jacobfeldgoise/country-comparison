@@ -793,10 +793,16 @@ export default function App() {
 
   const mapDragBounds = useMemo(() => {
     if (!mapProjection || !worldFC) {
-      return [
-        [0, 0],
-        [mapW, mapH],
-      ];
+      return {
+        bounds: [
+          [0, 0],
+          [mapW, mapH],
+        ],
+        width: mapW,
+        height: mapH,
+        padX: 0,
+        padY: 0,
+      };
     }
 
     try {
@@ -812,19 +818,28 @@ export default function App() {
         throw new Error("non-finite bounds");
       }
 
-      const padX = (mapW - width) / 2;
-      const padY = (mapH - height) / 2;
+      const padX = Math.max(0, (mapW - width) / 2);
+      const padY = Math.max(0, (mapH - height) / 2);
 
-      return [
-        [minX - padX, minY - padY],
-        [maxX + padX, maxY + padY],
-      ];
+      return {
+        bounds,
+        width,
+        height,
+        padX,
+        padY,
+      };
     } catch (error) {
       console.warn("Falling back to default drag bounds", error);
-      return [
-        [0, 0],
-        [mapW, mapH],
-      ];
+      return {
+        bounds: [
+          [0, 0],
+          [mapW, mapH],
+        ],
+        width: mapW,
+        height: mapH,
+        padX: 0,
+        padY: 0,
+      };
     }
   }, [mapProjection, worldFC, mapW, mapH]);
 
@@ -842,14 +857,24 @@ export default function App() {
         return [0, 0];
       }
 
-      const [[minX, minY], [maxX, maxY]] = mapDragBounds;
+      const {
+        bounds: [[minX, minY], [maxX, maxY]],
+        width,
+        height,
+        padX,
+        padY,
+      } = mapDragBounds;
+
       let x = mapW / 2 - projected[0] * safeZoom;
       let y = mapH / 2 - projected[1] * safeZoom;
 
-      if (x + safeZoom * minX < 0) x = -safeZoom * minX;
-      if (x + safeZoom * maxX > mapW) x = mapW - safeZoom * maxX;
-      if (y + safeZoom * minY < 0) y = -safeZoom * minY;
-      if (y + safeZoom * maxY > mapH) y = mapH - safeZoom * maxY;
+      const overflowX = Math.max(0, (width * safeZoom - mapW) / 2) + padX;
+      const overflowY = Math.max(0, (height * safeZoom - mapH) / 2) + padY;
+
+      if (x + safeZoom * minX < -overflowX) x = -overflowX - safeZoom * minX;
+      if (x + safeZoom * maxX > mapW + overflowX) x = mapW + overflowX - safeZoom * maxX;
+      if (y + safeZoom * minY < -overflowY) y = -overflowY - safeZoom * minY;
+      if (y + safeZoom * maxY > mapH + overflowY) y = mapH + overflowY - safeZoom * maxY;
 
       const adjustedProjected = [(mapW / 2 - x) / safeZoom, (mapH / 2 - y) / safeZoom];
       const adjusted = mapProjection.invert(adjustedProjected);
@@ -903,14 +928,23 @@ export default function App() {
         return;
       }
 
-      const [[minX, minY], [maxX, maxY]] = mapDragBounds;
+      const {
+        bounds: [[minX, minY], [maxX, maxY]],
+        width,
+        height,
+        padX,
+        padY,
+      } = mapDragBounds;
       let nextX = position.x ?? 0;
       let nextY = position.y ?? 0;
 
-      if (nextX + safeZoom * minX < 0) nextX = -safeZoom * minX;
-      if (nextX + safeZoom * maxX > mapW) nextX = mapW - safeZoom * maxX;
-      if (nextY + safeZoom * minY < 0) nextY = -safeZoom * minY;
-      if (nextY + safeZoom * maxY > mapH) nextY = mapH - safeZoom * maxY;
+      const overflowX = Math.max(0, (width * safeZoom - mapW) / 2) + padX;
+      const overflowY = Math.max(0, (height * safeZoom - mapH) / 2) + padY;
+
+      if (nextX + safeZoom * minX < -overflowX) nextX = -overflowX - safeZoom * minX;
+      if (nextX + safeZoom * maxX > mapW + overflowX) nextX = mapW + overflowX - safeZoom * maxX;
+      if (nextY + safeZoom * minY < -overflowY) nextY = -overflowY - safeZoom * minY;
+      if (nextY + safeZoom * maxY > mapH + overflowY) nextY = mapH + overflowY - safeZoom * maxY;
 
       const projectedX = (mapW / 2 - nextX) / safeZoom;
       const projectedY = (mapH / 2 - nextY) / safeZoom;
@@ -926,8 +960,11 @@ export default function App() {
     [mapDragBounds, mapProjection, mapW, mapH, setView]
   );
 
+  const skipClickRef = useRef(false);
+
   const handleMoveStart = useCallback(() => {
     draggingRef.current = true;
+    skipClickRef.current = true;
     setIsDraggingMap(true);
     setHoverName("");
   }, []);
@@ -936,6 +973,17 @@ export default function App() {
     (_, position) => {
       draggingRef.current = false;
       setIsDraggingMap(false);
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame
+          ? window.requestAnimationFrame(() => {
+              skipClickRef.current = false;
+            })
+          : setTimeout(() => {
+              skipClickRef.current = false;
+            }, 0);
+      } else {
+        skipClickRef.current = false;
+      }
       applyPosition(position);
     },
     [applyPosition]
@@ -1185,7 +1233,6 @@ export default function App() {
                           onZoomEnd={handleMoveOrZoomEnd}
                           minZoom={1}
                           maxZoom={8}
-                          translateExtent={mapDragBounds}
                         >
                           <Geographies geography={worldFC?.features ?? []}>
                             {({ geographies }) => (
@@ -1216,7 +1263,7 @@ export default function App() {
                                       }}
                                       onMouseLeave={() => setHoverName("")}
                                       onClick={() => {
-                                        if (disabled || draggingRef.current || isDraggingMap) return;
+                                        if (disabled || draggingRef.current || isDraggingMap || skipClickRef.current) return;
                                         setSelection(iso3);
                                       }}
                                       onKeyDown={(event) => onGeoKeyDown(event, iso3, disabled)}
