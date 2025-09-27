@@ -749,122 +749,6 @@ export default function App() {
     setCodeB(null);
   }, []);
 
-  // -------------------------------------------------------------------------
-  // Self-tests (run once in development to catch regressions quickly)
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    console.group("Country Comparator - self-tests");
-    try {
-      console.assert(numberFmt(1e3) === "1.00K");
-      console.assert(numberFmt(1500) === "1.50K");
-      console.assert(numberFmt(2e6) === "2.00M");
-      console.assert(numberFmt(null) === "—");
-      console.assert(numberFmt(1.5e12) === "1.50T");
-
-      console.assert(pctFmt(0.1) === "+10.0%" && pctFmt(-0.25) === "-25.0%" && pctFmt(null) === "—");
-      console.assert(pctFmt(0.1999) === "+19.9%");
-
-      console.assert(smallNumberFmt(1.239, 2) === "1.23" && smallNumberFmt(1.2, 2) === "1.2");
-      console.assert(smallNumberFmt(-1.239, 2) === "-1.23");
-
-      console.assert(typeof getNameProp({ NAME: "Test" }) === "string");
-      console.assert(getIso3({ ISO_A3: "USA" }) === "USA" && getIso3({ iso_a3: "fra" }) === "FRA");
-      console.assert(getIso3({ ISO_A3: "-99" }) === null);
-
-      console.assert(whiteBlue(0) === "hsl(210, 70%, 98%)");
-      console.assert(whiteBlue(1) === "hsl(210, 70%, 58%)");
-      console.assert(whiteBlue(-1) === "hsl(210, 70%, 98%)");
-      console.assert(whiteBlue(2) === "hsl(210, 70%, 58%)");
-      console.assert(whiteBluePalette(5)[0] === whiteBlue(0) && whiteBluePalette(5)[4] === whiteBlue(1));
-
-      console.assert(legendFmt(12.3456) === "12.34" && legendFmt(1234) === "1.23K", "legendFmt rounding");
-      if (linearStats.hasVals) {
-        console.assert(
-          typeof legendFmt(linearStats.min) === "string" && typeof legendFmt(linearStats.max) === "string",
-          "linear legend labels"
-        );
-      }
-
-      if (valueStats.vals.length) {
-        const thresholds = valueStats.thresholds;
-        console.assert(thresholds.length === 4 && thresholds.every((value, index, arr) => index === 0 || value >= arr[index - 1]));
-        const minColorQ = colorFor(valueStats.vals[0]);
-        const maxColorQ = colorFor(valueStats.vals[valueStats.vals.length - 1]);
-        console.assert(minColorQ !== maxColorQ);
-      }
-
-      if (linearStats.hasVals) {
-        const mid = (linearStats.min + linearStats.max) / 2;
-        const cMin = colorFor(linearStats.min);
-        const cMid = colorFor(mid);
-        const cMax = colorFor(linearStats.max);
-        console.assert(cMin !== cMax && cMin !== cMid && cMid !== cMax);
-      }
-
-      const gradient = "linear-gradient(to right, " + whiteBlue(0) + ", " + whiteBlue(1) + ")";
-      console.assert(typeof gradient === "string" && gradient.includes("linear-gradient"));
-
-      if (valueStats.palette.length) {
-        console.assert(valueStats.palette[0] === whiteBlue(0) && valueStats.palette.at(-1) === whiteBlue(1));
-      }
-
-      const computedScale = typeof mapProjection?.scale === "function" ? mapProjection.scale() : null;
-      if (mapW && mapH) {
-        console.assert(typeof computedScale === "number" && computedScale > 0);
-      }
-
-      if (defaultYear) {
-        Object.values(latestYearByField).forEach((year) => {
-          if (typeof year === "number") console.assert(defaultYear >= year);
-        });
-      }
-
-      console.assert(latestYearByField && typeof latestYearByField === "object");
-
-      if (!codeA && !codeB) {
-        const hdrA = dataA?.country || "—";
-        const hdrB = dataB?.country || "—";
-        console.assert(hdrA === "—" && hdrB === "—");
-      }
-
-      console.assert(relAB(5, 3) === "A" && relAB(3, 5) === "B" && relAB(2, 2) === "tie" && relAB(null, 1) === "na");
-      console.assert(relAB("10", 9.999) === "A");
-      console.assert(relAB("5", "5") === "tie");
-
-      console.assert(typeof fmtTime(Date.now()) === "string");
-      console.assert(typeof zoom === "number" && Array.isArray(center) && center.length === 2);
-      console.assert(typeof clear === "function" && typeof swap === "function", "clear/swap exist");
-      console.assert(metrics.includes("population"), "metrics include base fields");
-
-      // Daily refresh checks (non-fatal)
-      console.assert(typeof localStorage !== "undefined", "localStorage available");
-      if (lastRefreshed) console.assert(lastRefreshed <= Date.now(), "lastRefreshed sane");
-    } catch (error) {
-      console.error("Self-tests error:", error);
-    } finally {
-      console.groupEnd();
-    }
-  }, [
-    center,
-    clear,
-    codeA,
-    codeB,
-    colorFor,
-    dataA,
-    dataB,
-    defaultYear,
-    lastRefreshed,
-    latestYearByField,
-    linearStats,
-    mapH,
-    mapProjection,
-    mapW,
-    metrics,
-    swap,
-    valueStats,
-    zoom,
-  ]);
-
   // Accessibility: allow keyboard users to select countries.
   const onGeoKeyDown = (event, iso3, disabled) => {
     if (disabled) return;
@@ -1043,6 +927,124 @@ export default function App() {
   useEffect(() => {
     setView(centerRef.current, zoomRef.current);
   }, [mapDragBounds, mapProjection, setView]);
+
+  // -------------------------------------------------------------------------
+  // Self-tests (run once in development to catch regressions quickly)
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    console.group("Country Comparator - self-tests");
+    try {
+      console.assert(numberFmt(1e3) === "1.00K");
+      console.assert(numberFmt(1500) === "1.50K");
+      console.assert(numberFmt(2e6) === "2.00M");
+      console.assert(numberFmt(null) === "—");
+      console.assert(numberFmt(1.5e12) === "1.50T");
+
+      console.assert(pctFmt(0.1) === "+10.0%" && pctFmt(-0.25) === "-25.0%" && pctFmt(null) === "—");
+      console.assert(pctFmt(0.1999) === "+19.9%");
+
+      console.assert(smallNumberFmt(1.239, 2) === "1.23" && smallNumberFmt(1.2, 2) === "1.2");
+      console.assert(smallNumberFmt(-1.239, 2) === "-1.23");
+
+      console.assert(typeof getNameProp({ NAME: "Test" }) === "string");
+      console.assert(getIso3({ ISO_A3: "USA" }) === "USA" && getIso3({ iso_a3: "fra" }) === "FRA");
+      console.assert(getIso3({ ISO_A3: "-99" }) === null);
+
+      console.assert(whiteBlue(0) === "hsl(210, 70%, 98%)");
+      console.assert(whiteBlue(1) === "hsl(210, 70%, 58%)");
+      console.assert(whiteBlue(-1) === "hsl(210, 70%, 98%)");
+      console.assert(whiteBlue(2) === "hsl(210, 70%, 58%)");
+      console.assert(whiteBluePalette(5)[0] === whiteBlue(0) && whiteBluePalette(5)[4] === whiteBlue(1));
+
+      console.assert(legendFmt(12.3456) === "12.34" && legendFmt(1234) === "1.23K", "legendFmt rounding");
+      if (linearStats.hasVals) {
+        console.assert(
+          typeof legendFmt(linearStats.min) === "string" && typeof legendFmt(linearStats.max) === "string",
+          "linear legend labels"
+        );
+      }
+
+      if (valueStats.vals.length) {
+        const thresholds = valueStats.thresholds;
+        console.assert(
+          thresholds.length === 4 && thresholds.every((value, index, arr) => index === 0 || value >= arr[index - 1])
+        );
+        const minColorQ = colorFor(valueStats.vals[0]);
+        const maxColorQ = colorFor(valueStats.vals[valueStats.vals.length - 1]);
+        console.assert(minColorQ !== maxColorQ);
+      }
+
+      if (linearStats.hasVals) {
+        const mid = (linearStats.min + linearStats.max) / 2;
+        const cMin = colorFor(linearStats.min);
+        const cMid = colorFor(mid);
+        const cMax = colorFor(linearStats.max);
+        console.assert(cMin !== cMax && cMin !== cMid && cMid !== cMax);
+      }
+
+      const gradient = "linear-gradient(to right, " + whiteBlue(0) + ", " + whiteBlue(1) + ")";
+      console.assert(typeof gradient === "string" && gradient.includes("linear-gradient"));
+
+      if (valueStats.palette.length) {
+        console.assert(valueStats.palette[0] === whiteBlue(0) && valueStats.palette.at(-1) === whiteBlue(1));
+      }
+
+      const computedScale = typeof mapProjection?.scale === "function" ? mapProjection.scale() : null;
+      if (mapW && mapH) {
+        console.assert(typeof computedScale === "number" && computedScale > 0);
+      }
+
+      if (defaultYear) {
+        Object.values(latestYearByField).forEach((year) => {
+          if (typeof year === "number") console.assert(defaultYear >= year);
+        });
+      }
+
+      console.assert(latestYearByField && typeof latestYearByField === "object");
+
+      if (!codeA && !codeB) {
+        const hdrA = dataA?.country || "—";
+        const hdrB = dataB?.country || "—";
+        console.assert(hdrA === "—" && hdrB === "—");
+      }
+
+      console.assert(relAB(5, 3) === "A" && relAB(3, 5) === "B" && relAB(2, 2) === "tie" && relAB(null, 1) === "na");
+      console.assert(relAB("10", 9.999) === "A");
+      console.assert(relAB("5", "5") === "tie");
+
+      console.assert(typeof fmtTime(Date.now()) === "string");
+      console.assert(typeof zoom === "number" && Array.isArray(center) && center.length === 2);
+      console.assert(typeof clear === "function" && typeof swap === "function", "clear/swap exist");
+      console.assert(metrics.includes("population"), "metrics include base fields");
+
+      // Daily refresh checks (non-fatal)
+      console.assert(typeof localStorage !== "undefined", "localStorage available");
+      if (lastRefreshed) console.assert(lastRefreshed <= Date.now(), "lastRefreshed sane");
+    } catch (error) {
+      console.error("Self-tests error:", error);
+    } finally {
+      console.groupEnd();
+    }
+  }, [
+    center,
+    clear,
+    codeA,
+    codeB,
+    colorFor,
+    dataA,
+    dataB,
+    defaultYear,
+    lastRefreshed,
+    latestYearByField,
+    linearStats,
+    mapH,
+    mapProjection,
+    mapW,
+    metrics,
+    swap,
+    valueStats,
+    zoom,
+  ]);
 
   useEffect(() => {
     const element = containerRef.current;
