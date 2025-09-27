@@ -80,6 +80,21 @@ const SelectItem = ({ value, children }) => <option value={value}>{children}</op
 // Map interaction helpers
 // ---------------------------------------------------------------------------
 
+const MAP_SELECTION_COLORS = {
+  A: {
+    fill: "#6366F1",
+    listBgClass: "bg-indigo-50",
+    chipClass: "bg-indigo-50 text-indigo-700",
+    pulseClass: "map-selection-pulse--a",
+  },
+  B: {
+    fill: "#F97316",
+    listBgClass: "bg-orange-50",
+    chipClass: "bg-orange-50 text-orange-700",
+    pulseClass: "map-selection-pulse--b",
+  },
+};
+
 const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const identityConstrain = (position) => position;
@@ -1664,48 +1679,76 @@ export default function App() {
                                   const iso3 = getIso3(geo.properties);
                                   const disabled = !iso3;
                                   const row = !disabled ? dataByIso3.get(iso3) : null;
-                                  const isSelected = !disabled && (iso3 === codeA || iso3 === codeB);
+                                  const selectedLabel = !disabled && iso3 === codeA ? "A" : !disabled && iso3 === codeB ? "B" : null;
                                   const fillColor = disabled
                                     ? whiteBlue(0.05)
-                                    : isSelected
-                                    ? iso3 === codeA
-                                      ? "#10b981"
-                                      : "#ef4444"
+                                    : selectedLabel
+                                    ? MAP_SELECTION_COLORS[selectedLabel].fill
                                     : colorFor(row?.[colorMetric]);
+                                  const selectionFilter = selectedLabel ? MAP_SELECTION_COLORS[selectedLabel].fill : null;
+
+                                  const baseStyles = {
+                                    outline: "none",
+                                    pointerEvents: disabled || isDraggingMap ? "none" : "auto",
+                                    transition: "filter 150ms ease",
+                                  };
+
+                                  const hoverFilter =
+                                    !disabled && !isDraggingMap
+                                      ? selectedLabel
+                                        ? `drop-shadow(0 0 0.25rem ${selectionFilter}55) drop-shadow(0 0 0.75rem ${selectionFilter}33) brightness(0.95)`
+                                        : "brightness(0.95)"
+                                      : undefined;
 
                                   return (
-                                    <Geography
-                                      key={geo.rsmKey}
-                                      geography={geo}
-                                      onMouseEnter={() => {
-                                        if (disabled || draggingRef.current || isDraggingMap) {
-                                          setHoverName("");
-                                          return;
-                                        }
-                                        setHoverName(getNameProp(geo.properties));
-                                      }}
-                                      onMouseLeave={() => setHoverName("")}
-                                      onClick={() => {
-                                        if (disabled || draggingRef.current || isDraggingMap || skipClickRef.current) return;
-                                        setSelection(iso3);
-                                      }}
-                                      onKeyDown={(event) => onGeoKeyDown(event, iso3, disabled)}
-                                      tabIndex={disabled ? -1 : 0}
-                                      style={{
-                                        default: {
-                                          outline: "none",
-                                          pointerEvents: disabled || isDraggingMap ? "none" : "auto",
-                                        },
-                                        hover: {
-                                          outline: "none",
-                                          filter: disabled || isDraggingMap ? undefined : "brightness(0.95)",
-                                        },
-                                        pressed: { outline: "none" },
-                                      }}
-                                      fill={fillColor}
-                                      stroke="#CBD5E1"
-                                      strokeWidth={0.6}
-                                    />
+                                    <React.Fragment key={geo.rsmKey}>
+                                      <Geography
+                                        geography={geo}
+                                        onMouseEnter={() => {
+                                          if (disabled || draggingRef.current || isDraggingMap) {
+                                            setHoverName("");
+                                            return;
+                                          }
+                                          setHoverName(getNameProp(geo.properties));
+                                        }}
+                                        onMouseLeave={() => setHoverName("")}
+                                        onClick={() => {
+                                          if (disabled || draggingRef.current || isDraggingMap || skipClickRef.current) return;
+                                          setSelection(iso3);
+                                        }}
+                                        onKeyDown={(event) => onGeoKeyDown(event, iso3, disabled)}
+                                        tabIndex={disabled ? -1 : 0}
+                                        style={{
+                                          default: {
+                                            ...baseStyles,
+                                            filter: selectedLabel
+                                              ? `drop-shadow(0 0 0.25rem ${selectionFilter}66) drop-shadow(0 0 0.75rem ${selectionFilter}33)`
+                                              : undefined,
+                                          },
+                                          hover: {
+                                            ...baseStyles,
+                                            filter: hoverFilter,
+                                          },
+                                          pressed: { outline: "none" },
+                                        }}
+                                        fill={fillColor}
+                                        stroke="#CBD5E1"
+                                        strokeWidth={0.6}
+                                      />
+                                      {selectedLabel && (
+                                        <Geography
+                                          geography={geo}
+                                          className={`map-selection-pulse ${MAP_SELECTION_COLORS[selectedLabel].pulseClass}`}
+                                          vectorEffect="non-scaling-stroke"
+                                          style={{
+                                            default: { pointerEvents: "none" },
+                                            hover: { pointerEvents: "none" },
+                                            pressed: { pointerEvents: "none" },
+                                          }}
+                                          fill="none"
+                                        />
+                                      )}
+                                    </React.Fragment>
                                   );
                                 })}
                             </>
@@ -1785,12 +1828,7 @@ export default function App() {
                     const selectedLabel = country.iso3 === codeA ? "A" : country.iso3 === codeB ? "B" : null;
                     const baseClasses =
                       "w-full flex items-center justify-between text-left px-3 py-2 text-sm border-b last:border-0 hover:bg-slate-50";
-                    const selectionClass =
-                      selectedLabel === "A"
-                        ? "bg-emerald-50"
-                        : selectedLabel === "B"
-                        ? "bg-rose-50"
-                        : "";
+                    const selectionClass = selectedLabel ? MAP_SELECTION_COLORS[selectedLabel].listBgClass : "";
 
                     return (
                       <button
@@ -1805,9 +1843,7 @@ export default function App() {
                         {selectedLabel && (
                           <span
                             className={`text-[10px] px-1.5 py-0.5 rounded ring-1 ${
-                              selectedLabel === "A"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-rose-50 text-rose-700"
+                              selectedLabel ? MAP_SELECTION_COLORS[selectedLabel].chipClass : ""
                             }`}
                           >
                             {selectedLabel}
