@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
-import { geoEqualEarth } from "d3-geo";
+import { geoEqualEarth, geoPath } from "d3-geo";
 import { ArrowLeftRight, Search, Info } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -243,7 +243,6 @@ const StatRow = ({
   dataB,
   fmt = (value) => value,
   diffSuffix = "",
-  latestYear,
   defaultYear,
 }) => {
   const seriesA = dataA?.__series?.[field] || {};
@@ -412,7 +411,6 @@ export default function App() {
   // State
   // -------------------------------------------------------------------------
   const [liveRows, setLiveRows] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastRefreshed, setLastRefreshed] = useState(null);
 
@@ -428,7 +426,6 @@ export default function App() {
   // Fetch World Bank metrics + GeoJSON boundaries
   // -------------------------------------------------------------------------
   const fetchLive = useCallback(async () => {
-    setLoading(true);
     setError("");
 
     try {
@@ -554,19 +551,29 @@ export default function App() {
       }
     } catch (error) {
       setError(error?.message || "Failed to fetch live data");
-    } finally {
-      setLoading(false);
     }
   }, [METRICS]);
 
   // --- Once-per-day refresh policy ---
   useEffect(() => {
-    let last = null; try { const raw = localStorage.getItem(LAST_KEY); if (raw) last = Number(raw); } catch {}
+    let last = null;
+    try {
+      const raw = localStorage.getItem(LAST_KEY);
+      if (raw) last = Number(raw);
+    } catch {
+      // Ignore localStorage access failures (e.g., Safari private mode).
+    }
+
     const now = Date.now();
-    if (!last || !Number.isFinite(last) || now - last > DAY_MS || !liveRows.length) fetchLive(); else setLastRefreshed(last);
+    if (!last || !Number.isFinite(last) || now - last > DAY_MS || !liveRows.length) {
+      fetchLive();
+    } else {
+      setLastRefreshed(last);
+    }
+
     const id = setInterval(fetchLive, DAY_MS);
     return () => clearInterval(id);
-  }, [fetchLive]);
+  }, [fetchLive, liveRows.length]);
 
   const activeRows = liveRows;
 
@@ -669,22 +676,25 @@ export default function App() {
     return { min, max, hasVals: true, range: max - min };
   }, [activeRows, colorMetric]);
 
-  const colorFor = (value) => {
-    if (typeof value !== "number" || Number.isNaN(value)) return whiteBlue(0);
+  const colorFor = useCallback(
+    (value) => {
+      if (typeof value !== "number" || Number.isNaN(value)) return whiteBlue(0);
 
-    if (colorScaleMode === "quantile") {
-      if (!valueStats.vals.length) return whiteBlue(0);
+      if (colorScaleMode === "quantile") {
+        if (!valueStats.vals.length) return whiteBlue(0);
 
-      const { thresholds, palette } = valueStats;
-      let index = 0;
-      while (index < thresholds.length && value > thresholds[index]) index += 1;
-      return palette[index];
-    }
+        const { thresholds, palette } = valueStats;
+        let index = 0;
+        while (index < thresholds.length && value > thresholds[index]) index += 1;
+        return palette[index];
+      }
 
-    if (!linearStats.hasVals || linearStats.max === linearStats.min) return whiteBlue(0);
-    const t = (value - linearStats.min) / (linearStats.max - linearStats.min);
-    return whiteBlue(t);
-  };
+      if (!linearStats.hasVals || linearStats.max === linearStats.min) return whiteBlue(0);
+      const t = (value - linearStats.min) / (linearStats.max - linearStats.min);
+      return whiteBlue(t);
+    },
+    [colorScaleMode, linearStats, valueStats]
+  );
 
   const filtered = useMemo(() => {
     const term = filter.toLowerCase();
@@ -729,17 +739,15 @@ export default function App() {
     }
   };
 
-  const swap = () => {
-    const a = codeA;
-    const b = codeB;
-    setCodeA(b);
-    setCodeB(a);
-  };
+  const swap = useCallback(() => {
+    setCodeA(codeB);
+    setCodeB(codeA);
+  }, [codeA, codeB]);
 
-  const clear = () => {
+  const clear = useCallback(() => {
     setCodeA(null);
     setCodeB(null);
-  };
+  }, []);
 
   // -------------------------------------------------------------------------
   // Self-tests (run once in development to catch regressions quickly)
@@ -800,7 +808,10 @@ export default function App() {
         console.assert(valueStats.palette[0] === whiteBlue(0) && valueStats.palette.at(-1) === whiteBlue(1));
       }
 
-      if (mapW && mapH) console.assert(typeof computedScale === "number" && computedScale > 0);
+      const computedScale = typeof mapProjection?.scale === "function" ? mapProjection.scale() : null;
+      if (mapW && mapH) {
+        console.assert(typeof computedScale === "number" && computedScale > 0);
+      }
 
       if (defaultYear) {
         Object.values(latestYearByField).forEach((year) => {
@@ -833,7 +844,26 @@ export default function App() {
     } finally {
       console.groupEnd();
     }
-  }, []);
+  }, [
+    center,
+    clear,
+    codeA,
+    codeB,
+    colorFor,
+    dataA,
+    dataB,
+    defaultYear,
+    lastRefreshed,
+    latestYearByField,
+    linearStats,
+    mapH,
+    mapProjection,
+    mapW,
+    metrics,
+    swap,
+    valueStats,
+    zoom,
+  ]);
 
   // Accessibility: allow keyboard users to select countries.
   const onGeoKeyDown = (event, iso3, disabled) => {
@@ -875,13 +905,42 @@ export default function App() {
     return projection;
   }, [worldFC, mapW, mapH]);
 
-  const mapDragBounds = useMemo(
-    () => [
-      [0, 0],
-      [mapW, mapH],
-    ],
-    [mapW, mapH]
-  );
+  const mapDragBounds = useMemo(() => {
+    if (!mapProjection || !worldFC) {
+      return [
+        [0, 0],
+        [mapW, mapH],
+      ];
+    }
+
+    try {
+      const path = geoPath(mapProjection);
+      const bounds = path.bounds(worldFC);
+      if (!bounds || bounds.length !== 2) throw new Error("invalid bounds");
+
+      const [[minX, minY], [maxX, maxY]] = bounds;
+      const width = maxX - minX;
+      const height = maxY - minY;
+
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+        throw new Error("non-finite bounds");
+      }
+
+      const padX = (mapW - width) / 2;
+      const padY = (mapH - height) / 2;
+
+      return [
+        [minX - padX, minY - padY],
+        [maxX + padX, maxY + padY],
+      ];
+    } catch (error) {
+      console.warn("Falling back to default drag bounds", error);
+      return [
+        [0, 0],
+        [mapW, mapH],
+      ];
+    }
+  }, [mapProjection, worldFC, mapW, mapH]);
 
   const clampCenter = useCallback(
     (coordinates, rawZoom = zoomRef.current) => {
@@ -1286,7 +1345,6 @@ export default function App() {
                         dataB={dataB}
                         fmt={fmtFor(metric)}
                         diffSuffix={diffSuffixFor(metric)}
-                        latestYear={latestYearByField[metric]}
                         defaultYear={defaultYear}
                       />
                     ))}
