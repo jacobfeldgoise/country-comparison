@@ -1,13 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="globeGradient" x1="0" x2="0" y1="0" y2="1">
-      <stop offset="0%" stop-color="#4facfe" />
-      <stop offset="100%" stop-color="#00f2fe" />
-    </linearGradient>
-  </defs>
-  <circle cx="256" cy="256" r="240" fill="url(#globeGradient)" stroke="#0b3d91" stroke-width="16" />
-  <path d="M96 256h320M256 96v320" stroke="#0b3d91" stroke-width="16" stroke-linecap="round" />
-  <path d="M256 16c-53.6 55.4-88 133.4-88 224s34.4 168.6 88 224c53.6-55.4 88-133.4 88-224S309.6 71.4 256 16z" fill="none" stroke="#0b3d91" stroke-width="16" />
-  <path d="M64 184c32 24 96 24 128 0s96-24 128 0 96 24 128 0" fill="none" stroke="#0b3d91" stroke-width="16" stroke-linecap="round" />
-  <path d="M64 328c32-24 96-24 128 0s96 24 128 0 96-24 128 0" fill="none" stroke="#0b3d91" stroke-width="16" stroke-linecap="round" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Stylized world globe icon</title>
+  <desc id="desc">Simplified black globe with white continent silhouettes</desc>
+  <circle cx="256" cy="256" r="232" fill="#0b0b0b" />
+  <path
+    fill="#ffffff"
+    d="M182 120
+       C 133 146 96 198 92 252
+       C 91 282 107 310 136 329
+       L 161 347
+       L 150 378
+       L 196 430
+       L 217 386
+       L 256 395
+       L 284 356
+       L 252 332
+       L 270 303
+       L 228 274
+       L 239 242
+       L 196 198
+       L 202 165
+       L 182 153
+       Z"
+  />
+  <path
+    fill="#ffffff"
+    d="M276 96
+       C 328 92 382 118 420 160
+       C 452 196 470 242 468 290
+       L 428 309
+       L 454 332
+       L 436 368
+       L 378 356
+       L 342 399
+       L 371 421
+       L 360 463
+       L 292 497
+       L 240 478
+       L 206 506
+       L 156 489
+       L 148 435
+       L 102 405
+       L 123 366
+       L 92 332
+       L 148 298
+       L 144 256
+       L 184 232
+       L 180 204
+       L 216 182
+       L 212 154
+       Z"
+  />
 </svg>
