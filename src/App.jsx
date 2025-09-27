@@ -654,25 +654,31 @@ const StatRow = ({
 
   const highlightA = relationship === "A" ? "bg-emerald-50/30" : relationship === "B" ? "bg-rose-50/30" : "";
   const highlightB = relationship === "B" ? "bg-emerald-50/30" : relationship === "A" ? "bg-rose-50/30" : "";
+  const displayA = fmt(valueA);
+  const displayB = fmt(valueB);
 
   return (
     <tr className="border-b last:border-0">
-      <td className="py-2 pr-2 text-xs sm:text-sm text-slate-500">{metricLabel}</td>
-      <td className={`py-2 pr-2 font-medium whitespace-nowrap ${highlightA}`}>
-        <span className="inline-flex items-center gap-1 align-middle">
-          {fmt(valueA)}
+      <td className="py-2 pr-3 text-xs sm:text-sm text-slate-500 align-top">{metricLabel}</td>
+      <td className={`py-2 pr-2 font-medium ${highlightA}`}>
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="truncate" title={displayA}>
+            {displayA}
+          </span>
           {relationship === "A" && icon("higher")}
           {relationship === "B" && icon("lower")}
-        </span>
+        </div>
       </td>
-      <td className={`py-2 pr-2 font-medium whitespace-nowrap ${highlightB}`}>
-        <span className="inline-flex items-center gap-1 align-middle">
-          {fmt(valueB)}
+      <td className={`py-2 pr-2 font-medium ${highlightB}`}>
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="truncate" title={displayB}>
+            {displayB}
+          </span>
           {relationship === "B" && icon("higher")}
           {relationship === "A" && icon("lower")}
-        </span>
+        </div>
       </td>
-      <td className="py-2 pl-2 min-w-[7.5rem]">
+      <td className="py-2 pl-2 align-top">
         <DiffCell a={valueA} b={valueB} suffix={diffSuffix} />
       </td>
     </tr>
@@ -1816,20 +1822,34 @@ export default function App() {
           </Card>
 
           {/* Stats table */}
-          <Card className="lg:col-span-4 rounded-2xl shadow-sm lg:min-w-[28rem] xl:min-w-[32rem]">
+          <Card className="lg:col-span-4 rounded-2xl shadow-sm lg:min-w-[26rem] xl:min-w-[30rem]">
             <CardContent>
               <h2 className="text-lg font-semibold mb-1">Comparison</h2>
               <div className="text-xs text-slate-500 mb-3">
                 Data from <span className="font-medium">{defaultYear ?? "—"}</span> unless otherwise specified
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm table-fixed">
+                  <colgroup>
+                    <col className="w-[38%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[18%]" />
+                  </colgroup>
                   <thead>
                     <tr className="text-left text-xs text-slate-500 border-b">
                       <th className="py-2 pr-2 font-medium">Metric</th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap min-w-[8rem]">{dataA?.country || "—"}</th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap min-w-[8rem]">{dataB?.country || "—"}</th>
-                      <th className="py-2 pl-2 font-medium whitespace-nowrap text-right min-w-[7.5rem]">Δ / %</th>
+                      <th className="py-2 pr-2 font-medium">
+                        <span className="block truncate" title={dataA?.country || "—"}>
+                          {dataA?.country || "—"}
+                        </span>
+                      </th>
+                      <th className="py-2 pr-2 font-medium">
+                        <span className="block truncate" title={dataB?.country || "—"}>
+                          {dataB?.country || "—"}
+                        </span>
+                      </th>
+                      <th className="py-2 pl-2 font-medium text-right">Δ / %</th>
                     </tr>
                   </thead>
                   <tbody>
