@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
-import { geoEqualEarth, geoPath } from "d3-geo";
+import { geoEqualEarth } from "d3-geo";
 import { ArrowLeftRight, Search, Info } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -875,30 +875,13 @@ export default function App() {
     return projection;
   }, [worldFC, mapW, mapH]);
 
-  const mapBounds = useMemo(() => {
-    try {
-      if (worldFC && mapProjection) {
-        const path = geoPath(mapProjection);
-        return path.bounds(worldFC);
-      }
-    } catch {
-      // ignore projection errors and fall back to the container bounds
-    }
-    return [
+  const mapDragBounds = useMemo(
+    () => [
       [0, 0],
       [mapW, mapH],
-    ];
-  }, [worldFC, mapProjection, mapW, mapH]);
-
-  const mapDragBounds = useMemo(() => {
-    const [[minX, minY], [maxX, maxY]] = mapBounds;
-    const padX = mapW * 0.05;
-    const padY = mapH * 0.05;
-    return [
-      [minX - padX, minY - padY],
-      [maxX + padX, maxY + padY],
-    ];
-  }, [mapBounds, mapW, mapH]);
+    ],
+    [mapW, mapH]
+  );
 
   const clampCenter = useCallback(
     (coordinates, rawZoom = zoomRef.current) => {
