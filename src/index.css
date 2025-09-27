@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+.map-selection-pulse {
+  pointer-events: none;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: mapSelectionPulse 2.8s ease-out infinite;
+}
+
+.map-selection-pulse--a {
+  stroke: #6366f1;
+}
+
+.map-selection-pulse--b {
+  stroke: #f97316;
+}
+
+@keyframes mapSelectionPulse {
+  0% {
+    stroke-width: 1.5;
+    stroke-opacity: 0.45;
+  }
+  55% {
+    stroke-width: 11;
+    stroke-opacity: 0;
+  }
+  100% {
+    stroke-width: 11;
+    stroke-opacity: 0;
+  }
+}
