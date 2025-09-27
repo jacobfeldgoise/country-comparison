@@ -672,7 +672,7 @@ const StatRow = ({
           {relationship === "A" && icon("lower")}
         </span>
       </td>
-      <td className="py-2 pl-2 min-w-[7.5rem]">
+      <td className="py-2 pl-2 min-w-[6rem] sm:min-w-[7rem]">
         <DiffCell a={valueA} b={valueB} suffix={diffSuffix} />
       </td>
     </tr>
@@ -1816,7 +1816,7 @@ export default function App() {
           </Card>
 
           {/* Stats table */}
-          <Card className="lg:col-span-4 rounded-2xl shadow-sm lg:min-w-[28rem] xl:min-w-[32rem]">
+          <Card className="lg:col-span-4 rounded-2xl shadow-sm lg:min-w-[26rem] xl:min-w-[30rem]">
             <CardContent>
               <h2 className="text-lg font-semibold mb-1">Comparison</h2>
               <div className="text-xs text-slate-500 mb-3">
@@ -1827,9 +1827,15 @@ export default function App() {
                   <thead>
                     <tr className="text-left text-xs text-slate-500 border-b">
                       <th className="py-2 pr-2 font-medium">Metric</th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap min-w-[8rem]">{dataA?.country || "—"}</th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap min-w-[8rem]">{dataB?.country || "—"}</th>
-                      <th className="py-2 pl-2 font-medium whitespace-nowrap text-right min-w-[7.5rem]">Δ / %</th>
+                      <th className="py-2 pr-2 font-medium whitespace-nowrap min-w-[6.5rem] sm:min-w-[7.5rem]">
+                        {dataA?.country || "—"}
+                      </th>
+                      <th className="py-2 pr-2 font-medium whitespace-nowrap min-w-[6.5rem] sm:min-w-[7.5rem]">
+                        {dataB?.country || "—"}
+                      </th>
+                      <th className="py-2 pl-2 font-medium whitespace-nowrap text-right min-w-[6rem] sm:min-w-[7rem]">
+                        Δ / %
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
