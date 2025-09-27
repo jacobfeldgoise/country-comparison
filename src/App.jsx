@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
+import React, { useMemo, useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
+import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { geoEqualEarth, geoPath } from "d3-geo";
 import { ArrowLeftRight, Search, Info } from "lucide-react";
 
@@ -75,6 +75,365 @@ const Select = ({ value, onChange, children, className = "" }) => (
 
 /** Wrapper around <option> for readability. */
 const SelectItem = ({ value, children }) => <option value={value}>{children}</option>;
+
+// ---------------------------------------------------------------------------
+// Map interaction helpers
+// ---------------------------------------------------------------------------
+
+const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const identityConstrain = (position) => position;
+
+const useBoundedZoomPan = ({
+  center = [0, 0],
+  zoom = 1,
+  minZoom = 1,
+  maxZoom = 5,
+  zoomSensitivity = 0.025,
+  onZoomStart,
+  onZoomEnd,
+  onMoveStart,
+  onMove,
+  onMoveEnd,
+  disablePanning = false,
+  disableZooming = false,
+  width = 0,
+  height = 0,
+  projection,
+  constrain = identityConstrain,
+}) => {
+  const clampPosition = useCallback(
+    (pos) => {
+      const baseZoom = clampNumber(pos.zoom ?? zoom, minZoom, maxZoom);
+      const base = {
+        x: pos.x ?? 0,
+        y: pos.y ?? 0,
+        zoom: baseZoom,
+      };
+
+      try {
+        const constrained = constrain({ ...base });
+        if (!constrained) return base;
+        return {
+          x: Number.isFinite(constrained.x) ? constrained.x : base.x,
+          y: Number.isFinite(constrained.y) ? constrained.y : base.y,
+          zoom: clampNumber(constrained.zoom ?? base.zoom, minZoom, maxZoom),
+        };
+      } catch {
+        return base;
+      }
+    },
+    [constrain, maxZoom, minZoom, zoom]
+  );
+
+  const projectCenter = useCallback(
+    (coordinates, currentZoom) => {
+      if (!projection) {
+        return {
+          x: width / 2,
+          y: height / 2,
+        };
+      }
+
+      try {
+        const projected = projection(coordinates);
+        if (!Array.isArray(projected) || projected.length < 2) {
+          throw new Error("invalid projection");
+        }
+        const [px, py] = projected;
+        if (!Number.isFinite(px) || !Number.isFinite(py)) {
+          throw new Error("non-finite projection");
+        }
+        return {
+          x: width / 2 - px * currentZoom,
+          y: height / 2 - py * currentZoom,
+        };
+      } catch {
+        return {
+          x: width / 2,
+          y: height / 2,
+        };
+      }
+    },
+    [projection, width, height]
+  );
+
+  const [position, setPosition] = useState(() => {
+    const projected = projectCenter(center, zoom);
+    const clamped = clampPosition({ ...projected, zoom });
+    return {
+      x: clamped.x,
+      y: clamped.y,
+      last: [clamped.x, clamped.y],
+      zoom: clamped.zoom,
+      dragging: false,
+      zooming: false,
+    };
+  });
+
+  const elRef = useRef(null);
+  const point = useRef(null);
+  const wheelTimer = useRef(null);
+  const isPointerDown = useRef(false);
+  const pointerOrigin = useRef(null);
+
+  const getPointFromEvent = useCallback((event) => {
+    const svg = elRef.current?.closest("svg");
+    if (!svg) {
+      return { x: 0, y: 0 };
+    }
+
+    if (!point.current) {
+      point.current = svg.createSVGPoint();
+    }
+
+    if (event.targetTouches && event.targetTouches[0]) {
+      point.current.x = event.targetTouches[0].clientX;
+      point.current.y = event.targetTouches[0].clientY;
+    } else {
+      point.current.x = event.clientX;
+      point.current.y = event.clientY;
+    }
+
+    try {
+      const invertedMatrix = svg.getScreenCTM().inverse();
+      return point.current.matrixTransform(invertedMatrix);
+    } catch {
+      return { x: 0, y: 0 };
+    }
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (event) => {
+      if (disablePanning) return;
+      const svg = elRef.current?.closest("svg");
+      if (!svg) return;
+
+      isPointerDown.current = true;
+      pointerOrigin.current = getPointFromEvent(event);
+
+      setPosition((current) => {
+        const next = { ...current, dragging: true };
+        if (onMoveStart) onMoveStart(event, next);
+        return next;
+      });
+    },
+    [disablePanning, getPointFromEvent, onMoveStart]
+  );
+
+  const handlePointerMove = useCallback(
+    (event) => {
+      if (!isPointerDown.current) return;
+      event.preventDefault();
+      const pointerPosition = getPointFromEvent(event);
+
+      setPosition((current) => {
+        if (!pointerOrigin.current) return current;
+        const raw = {
+          ...current,
+          x: current.last[0] + (pointerPosition.x - pointerOrigin.current.x),
+          y: current.last[1] + (pointerPosition.y - pointerOrigin.current.y),
+          dragging: true,
+        };
+        const clamped = clampPosition(raw);
+        const next = {
+          ...current,
+          x: clamped.x,
+          y: clamped.y,
+          zoom: clamped.zoom,
+          dragging: true,
+        };
+        if (onMove) onMove(event, next);
+        return next;
+      });
+    },
+    [clampPosition, getPointFromEvent, onMove]
+  );
+
+  const handlePointerUp = useCallback(
+    (event) => {
+      if (!isPointerDown.current) return;
+      isPointerDown.current = false;
+
+      setPosition((current) => {
+        const clamped = clampPosition(current);
+        const next = {
+          ...current,
+          x: clamped.x,
+          y: clamped.y,
+          zoom: clamped.zoom,
+          last: [clamped.x, clamped.y],
+          dragging: false,
+        };
+        if (onMoveEnd) onMoveEnd(event, next);
+        return next;
+      });
+    },
+    [clampPosition, onMoveEnd]
+  );
+
+  const handleWheel = useCallback(
+    (event) => {
+      if (!event.ctrlKey || disableZooming) return;
+      event.preventDefault();
+
+      const speed = event.deltaY * zoomSensitivity;
+
+      setPosition((current) => {
+        const newZoom = clampNumber(current.zoom - speed, minZoom, maxZoom);
+        const pointerPosition = getPointFromEvent(event);
+
+        const rawX = (current.x - pointerPosition.x) * (newZoom / current.zoom) + pointerPosition.x;
+        const rawY = (current.y - pointerPosition.y) * (newZoom / current.zoom) + pointerPosition.y;
+
+        let next = {
+          ...current,
+          x: rawX,
+          y: rawY,
+          zoom: newZoom,
+          zooming: true,
+          last: [rawX, rawY],
+        };
+
+        next = { ...next, ...clampPosition(next) };
+        next.last = [next.x, next.y];
+
+        window.clearTimeout(wheelTimer.current);
+        wheelTimer.current = window.setTimeout(() => {
+          setPosition((finalState) => ({ ...finalState, zooming: false }));
+          if (onZoomEnd) onZoomEnd(event, next);
+        }, 66);
+
+        if (onZoomStart) onZoomStart(event, next);
+
+        return next;
+      });
+    },
+    [clampPosition, disableZooming, getPointFromEvent, maxZoom, minZoom, onZoomEnd, onZoomStart, zoomSensitivity]
+  );
+
+  useLayoutEffect(() => {
+    const svg = elRef.current?.closest("svg");
+    if (!svg) return undefined;
+
+    const down = (event) => handlePointerDown(event);
+    const move = (event) => handlePointerMove(event);
+    const up = (event) => handlePointerUp(event);
+
+    svg.addEventListener("wheel", handleWheel, { passive: false });
+
+    if (window.PointerEvent) {
+      svg.addEventListener("pointerdown", down);
+      svg.addEventListener("pointermove", move, { passive: false });
+      svg.addEventListener("pointerup", up);
+      svg.addEventListener("pointerleave", up);
+    } else {
+      svg.addEventListener("mousedown", down);
+      svg.addEventListener("mousemove", move);
+      svg.addEventListener("mouseup", up);
+      svg.addEventListener("mouseleave", up);
+      svg.addEventListener("touchstart", down);
+      svg.addEventListener("touchmove", move, { passive: false });
+      svg.addEventListener("touchend", up);
+    }
+
+    return () => {
+      svg.removeEventListener("wheel", handleWheel);
+
+      if (window.PointerEvent) {
+        svg.removeEventListener("pointerdown", down);
+        svg.removeEventListener("pointermove", move);
+        svg.removeEventListener("pointerup", up);
+        svg.removeEventListener("pointerleave", up);
+      } else {
+        svg.removeEventListener("mousedown", down);
+        svg.removeEventListener("mousemove", move);
+        svg.removeEventListener("mouseup", up);
+        svg.removeEventListener("mouseleave", up);
+        svg.removeEventListener("touchstart", down);
+        svg.removeEventListener("touchmove", move);
+        svg.removeEventListener("touchend", up);
+      }
+    };
+  }, [handlePointerDown, handlePointerMove, handlePointerUp, handleWheel]);
+
+  useEffect(() => {
+    setPosition((current) => {
+      const updated = clampPosition({ ...current, zoom });
+      return {
+        ...current,
+        x: updated.x,
+        y: updated.y,
+        zoom: updated.zoom,
+        last: [updated.x, updated.y],
+      };
+    });
+  }, [clampPosition, zoom]);
+
+  useEffect(() => {
+    setPosition((current) => {
+      const projected = projectCenter(center, current.zoom);
+      const updated = clampPosition({ ...current, ...projected });
+      return {
+        ...current,
+        x: updated.x,
+        y: updated.y,
+        zoom: updated.zoom,
+        last: [updated.x, updated.y],
+      };
+    });
+  }, [center, clampPosition, projectCenter]);
+
+  useEffect(() => {
+    setPosition((current) => {
+      const updated = clampPosition(current);
+      return {
+        ...current,
+        x: updated.x,
+        y: updated.y,
+        zoom: updated.zoom,
+        last: [updated.x, updated.y],
+      };
+    });
+  }, [clampPosition]);
+
+  useEffect(() => () => {
+    if (wheelTimer.current) {
+      window.clearTimeout(wheelTimer.current);
+    }
+  }, []);
+
+  return {
+    elRef,
+    position,
+    transformString: `translate(${position.x} ${position.y}) scale(${position.zoom})`,
+  };
+};
+
+const BoundedZoomableGroup = ({
+  children,
+  render,
+  className = "",
+  width,
+  height,
+  projection,
+  constrain,
+  ...rest
+}) => {
+  const { elRef, position, transformString } = useBoundedZoomPan({
+    width,
+    height,
+    projection,
+    constrain,
+    ...rest,
+  });
+
+  return (
+    <g ref={elRef} className={`rsm-zoomable-group ${className}`}>
+      {render ? render(position) : <g transform={transformString}>{children}</g>}
+    </g>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Constants & helper utilities
@@ -843,6 +1202,47 @@ export default function App() {
     }
   }, [mapProjection, worldFC, mapW, mapH]);
 
+  const constrainDragPosition = useCallback(
+    (position) => {
+      const rawZoom = position?.zoom ?? zoomRef.current ?? 1;
+      const safeZoom = Math.max(1, Math.min(rawZoom, 8));
+
+      if (!mapProjection || !mapDragBounds) {
+        return {
+          x: position?.x ?? 0,
+          y: position?.y ?? 0,
+          zoom: safeZoom,
+        };
+      }
+
+      const {
+        bounds: [[minX, minY], [maxX, maxY]],
+        width,
+        height,
+        padX,
+        padY,
+      } = mapDragBounds;
+
+      let nextX = Number.isFinite(position?.x) ? position.x : 0;
+      let nextY = Number.isFinite(position?.y) ? position.y : 0;
+
+      const overflowX = Math.max(0, (width * safeZoom - mapW) / 2) + padX;
+      const overflowY = Math.max(0, (height * safeZoom - mapH) / 2) + padY;
+
+      if (nextX + safeZoom * minX < -overflowX) nextX = -overflowX - safeZoom * minX;
+      if (nextX + safeZoom * maxX > mapW + overflowX) nextX = mapW + overflowX - safeZoom * maxX;
+      if (nextY + safeZoom * minY < -overflowY) nextY = -overflowY - safeZoom * minY;
+      if (nextY + safeZoom * maxY > mapH + overflowY) nextY = mapH + overflowY - safeZoom * maxY;
+
+      return {
+        x: nextX,
+        y: nextY,
+        zoom: safeZoom,
+      };
+    },
+    [mapDragBounds, mapProjection, mapW, mapH]
+  );
+
   const clampCenter = useCallback(
     (coordinates, rawZoom = zoomRef.current) => {
       const safeZoom = Math.max(1, Math.min(rawZoom ?? 1, 8));
@@ -857,26 +1257,18 @@ export default function App() {
         return [0, 0];
       }
 
-      const {
-        bounds: [[minX, minY], [maxX, maxY]],
-        width,
-        height,
-        padX,
-        padY,
-      } = mapDragBounds;
+      const initial = {
+        x: mapW / 2 - projected[0] * safeZoom,
+        y: mapH / 2 - projected[1] * safeZoom,
+        zoom: safeZoom,
+      };
 
-      let x = mapW / 2 - projected[0] * safeZoom;
-      let y = mapH / 2 - projected[1] * safeZoom;
+      const constrained = constrainDragPosition(initial);
 
-      const overflowX = Math.max(0, (width * safeZoom - mapW) / 2) + padX;
-      const overflowY = Math.max(0, (height * safeZoom - mapH) / 2) + padY;
-
-      if (x + safeZoom * minX < -overflowX) x = -overflowX - safeZoom * minX;
-      if (x + safeZoom * maxX > mapW + overflowX) x = mapW + overflowX - safeZoom * maxX;
-      if (y + safeZoom * minY < -overflowY) y = -overflowY - safeZoom * minY;
-      if (y + safeZoom * maxY > mapH + overflowY) y = mapH + overflowY - safeZoom * maxY;
-
-      const adjustedProjected = [(mapW / 2 - x) / safeZoom, (mapH / 2 - y) / safeZoom];
+      const adjustedProjected = [
+        (mapW / 2 - constrained.x) / constrained.zoom,
+        (mapH / 2 - constrained.y) / constrained.zoom,
+      ];
       const adjusted = mapProjection.invert(adjustedProjected);
 
       if (!adjusted) {
@@ -888,7 +1280,7 @@ export default function App() {
         Math.max(-90, Math.min(90, adjusted[1])),
       ];
     },
-    [mapDragBounds, mapProjection, mapW, mapH]
+    [constrainDragPosition, mapProjection, mapW, mapH]
   );
 
   const setView = useCallback(
@@ -921,33 +1313,17 @@ export default function App() {
   const applyPosition = useCallback(
     (position) => {
       if (!position) return;
-      const safeZoom = Math.max(1, Math.min(position.zoom ?? zoomRef.current, 8));
+
+      const constrained = constrainDragPosition(position);
+      const safeZoom = constrained.zoom;
 
       if (!mapProjection?.invert) {
         setView(centerRef.current, safeZoom);
         return;
       }
 
-      const {
-        bounds: [[minX, minY], [maxX, maxY]],
-        width,
-        height,
-        padX,
-        padY,
-      } = mapDragBounds;
-      let nextX = position.x ?? 0;
-      let nextY = position.y ?? 0;
-
-      const overflowX = Math.max(0, (width * safeZoom - mapW) / 2) + padX;
-      const overflowY = Math.max(0, (height * safeZoom - mapH) / 2) + padY;
-
-      if (nextX + safeZoom * minX < -overflowX) nextX = -overflowX - safeZoom * minX;
-      if (nextX + safeZoom * maxX > mapW + overflowX) nextX = mapW + overflowX - safeZoom * maxX;
-      if (nextY + safeZoom * minY < -overflowY) nextY = -overflowY - safeZoom * minY;
-      if (nextY + safeZoom * maxY > mapH + overflowY) nextY = mapH + overflowY - safeZoom * maxY;
-
-      const projectedX = (mapW / 2 - nextX) / safeZoom;
-      const projectedY = (mapH / 2 - nextY) / safeZoom;
+      const projectedX = (mapW / 2 - constrained.x) / safeZoom;
+      const projectedY = (mapH / 2 - constrained.y) / safeZoom;
       const derivedCenter = mapProjection.invert([projectedX, projectedY]);
 
       if (!derivedCenter) {
@@ -957,7 +1333,7 @@ export default function App() {
 
       setView(derivedCenter, safeZoom);
     },
-    [mapDragBounds, mapProjection, mapW, mapH, setView]
+    [constrainDragPosition, mapProjection, mapW, mapH, setView]
   );
 
   const skipClickRef = useRef(false);
@@ -1232,7 +1608,7 @@ export default function App() {
                       )}
 
                       <ComposableMap width={mapW} height={mapH} projection={mapProjection}>
-                        <ZoomableGroup
+                        <BoundedZoomableGroup
                           zoom={zoom}
                           center={center}
                           onMoveStart={handleMoveStart}
@@ -1241,6 +1617,10 @@ export default function App() {
                           onZoomEnd={handleMoveOrZoomEnd}
                           minZoom={1}
                           maxZoom={8}
+                          width={mapW}
+                          height={mapH}
+                          projection={mapProjection}
+                          constrain={constrainDragPosition}
                         >
                           <Geographies geography={worldFC?.features ?? []}>
                             {({ geographies }) => (
@@ -1296,7 +1676,7 @@ export default function App() {
                             </>
                           )}
                         </Geographies>
-                      </ZoomableGroup>
+                      </BoundedZoomableGroup>
                     </ComposableMap>
                     </>
                   ) : (
