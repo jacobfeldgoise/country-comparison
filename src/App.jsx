@@ -890,6 +890,16 @@ export default function App() {
     ];
   }, [worldFC, mapProjection, mapW, mapH]);
 
+  const mapDragBounds = useMemo(() => {
+    const [[minX, minY], [maxX, maxY]] = mapBounds;
+    const padX = mapW * 0.05;
+    const padY = mapH * 0.05;
+    return [
+      [minX - padX, minY - padY],
+      [maxX + padX, maxY + padY],
+    ];
+  }, [mapBounds, mapW, mapH]);
+
   const clampCenter = useCallback(
     (coordinates, rawZoom = zoomRef.current) => {
       const safeZoom = Math.max(1, Math.min(rawZoom ?? 1, 8));
@@ -904,7 +914,7 @@ export default function App() {
         return [0, 0];
       }
 
-      const [[minX, minY], [maxX, maxY]] = mapBounds;
+      const [[minX, minY], [maxX, maxY]] = mapDragBounds;
       let x = mapW / 2 - projected[0] * safeZoom;
       let y = mapH / 2 - projected[1] * safeZoom;
 
@@ -925,7 +935,7 @@ export default function App() {
         Math.max(-90, Math.min(90, adjusted[1])),
       ];
     },
-    [mapBounds, mapProjection, mapW, mapH]
+    [mapDragBounds, mapProjection, mapW, mapH]
   );
 
   const setView = useCallback(
@@ -965,7 +975,7 @@ export default function App() {
         return;
       }
 
-      const [[minX, minY], [maxX, maxY]] = mapBounds;
+      const [[minX, minY], [maxX, maxY]] = mapDragBounds;
       let nextX = position.x ?? 0;
       let nextY = position.y ?? 0;
 
@@ -985,12 +995,12 @@ export default function App() {
 
       setView(derivedCenter, safeZoom);
     },
-    [mapBounds, mapProjection, mapW, mapH, setView]
+    [mapDragBounds, mapProjection, mapW, mapH, setView]
   );
 
   useEffect(() => {
     setView(centerRef.current, zoomRef.current);
-  }, [mapBounds, mapProjection, setView]);
+  }, [mapDragBounds, mapProjection, setView]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -1113,6 +1123,7 @@ export default function App() {
                           onZoomEnd={(_, position) => applyPosition(position)}
                           minZoom={1}
                           maxZoom={8}
+                          translateExtent={mapDragBounds}
                         >
                           <Geographies geography={worldFC?.features ?? []}>
                             {({ geographies }) => (
