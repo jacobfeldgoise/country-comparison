@@ -491,6 +491,25 @@ const getIso3 = (props) => {
 const getNameProp = (props) =>
   props?.NAME ?? props?.name ?? props?.NAME_LONG ?? props?.name_long ?? props?.ADMIN ?? "";
 
+/** Convert a two-letter ISO code into its corresponding flag emoji. */
+const iso2ToFlagEmoji = (iso2) => {
+  if (!iso2 || typeof iso2 !== "string" || iso2.length !== 2) return "";
+  const upper = iso2.toUpperCase();
+  const chars = Array.from(upper);
+  if (chars.some((char) => char < "A" || char > "Z")) return "";
+  return String.fromCodePoint(
+    ...chars.map((char) => 0x1f1e6 + char.charCodeAt(0) - "A".charCodeAt(0))
+  );
+};
+
+/** Append the flag emoji (when available) to a country name. */
+const countryWithFlag = (name, iso2) => {
+  const base = typeof name === "string" ? name.trim() : "";
+  const flag = iso2ToFlagEmoji(iso2);
+  if (!base) return flag || "";
+  return flag ? `${base} ${flag}` : base;
+};
+
 /** Map a [0, 1] number to a blue-ish color on a white-to-deep gradient. */
 const whiteBlue = (t) => {
   const clamped = Math.max(0, Math.min(1, Number.isFinite(t) ? t : 0));
@@ -821,10 +840,12 @@ export default function App() {
         .filter((country) => country.region?.id !== "NA" && country.iso3Code)
         .map((country) => ({
           iso3: country.iso3Code.toUpperCase(),
+          iso2: country.iso2Code ? country.iso2Code.toUpperCase() : null,
           country: country.name,
         }));
 
       const wbNameMap = new Map(wbCountries.map((country) => [country.iso3, country.country]));
+      const wbIso2Map = new Map(wbCountries.map((country) => [country.iso3, country.iso2]));
 
       // 2. GeoJSON boundary data for the world map.
       const geoResponse = await fetch(geoUrl, { cache: "no-store" });
@@ -903,7 +924,12 @@ export default function App() {
       const rows = Array.from(allIso)
         .filter((iso) => wbNameMap.has(iso) || geoNameMap.has(iso))
         .map((iso) => {
-          const row = { iso3: iso, country: nameMap.get(iso) || iso, __years: {} };
+          const row = {
+            iso3: iso,
+            iso2: wbIso2Map.get(iso) || null,
+            country: nameMap.get(iso) || iso,
+            __years: {},
+          };
 
           METRICS.forEach((metric, index) => {
             const latest = bundles[index].latest.get(iso);
@@ -973,7 +999,7 @@ export default function App() {
     for (const row of dataByIso3.values()) {
       if (!row?.iso3 || seen.has(row.iso3)) continue;
       seen.add(row.iso3);
-      unique.push({ iso3: row.iso3, country: row.country || row.iso3 });
+      unique.push({ iso3: row.iso3, iso2: row.iso2 || null, country: row.country || row.iso3 });
     }
 
     return unique.sort((a, b) => a.country.localeCompare(b.country));
@@ -1709,7 +1735,12 @@ export default function App() {
                                             setHoverName("");
                                             return;
                                           }
-                                          setHoverName(getNameProp(geo.properties));
+                                          const fallbackName = getNameProp(geo.properties);
+                                          const display = countryWithFlag(
+                                            row?.country || fallbackName,
+                                            row?.iso2 || null
+                                          );
+                                          setHoverName(display || fallbackName || "");
                                         }}
                                         onMouseLeave={() => setHoverName("")}
                                         onClick={() => {
@@ -1767,8 +1798,8 @@ export default function App() {
 
               <div className="flex items-center justify-end mt-2 text-sm text-slate-500">
                 <div>
-                  Selected: <span className="font-medium">{dataA?.country || "—"}</span> vs {" "}
-                  <span className="font-medium">{dataB?.country || "—"}</span>
+                  Selected: <span className="font-medium">{countryWithFlag(dataA?.country || "—", dataA?.iso2)}</span> vs {" "}
+                  <span className="font-medium">{countryWithFlag(dataB?.country || "—", dataB?.iso2)}</span>
                 </div>
               </div>
 
@@ -1837,7 +1868,7 @@ export default function App() {
                         onClick={() => setSelection(country.iso3)}
                       >
                         <span>
-                          {country.country}
+                          {countryWithFlag(country.country, country.iso2)}
                           <span className="text-xs text-slate-500 ml-2">{country.iso3}</span>
                         </span>
                         {selectedLabel && (
@@ -1876,13 +1907,19 @@ export default function App() {
                     <tr className="text-left text-xs text-slate-500 border-b">
                       <th className="py-2 pr-2 font-medium">Metric</th>
                       <th className="py-2 pr-2 font-medium">
-                        <span className="block truncate" title={dataA?.country || "—"}>
-                          {dataA?.country || "—"}
+                        <span
+                          className="block truncate"
+                          title={countryWithFlag(dataA?.country || "—", dataA?.iso2)}
+                        >
+                          {countryWithFlag(dataA?.country || "—", dataA?.iso2)}
                         </span>
                       </th>
                       <th className="py-2 pr-2 font-medium">
-                        <span className="block truncate" title={dataB?.country || "—"}>
-                          {dataB?.country || "—"}
+                        <span
+                          className="block truncate"
+                          title={countryWithFlag(dataB?.country || "—", dataB?.iso2)}
+                        >
+                          {countryWithFlag(dataB?.country || "—", dataB?.iso2)}
                         </span>
                       </th>
                       <th className="py-2 pl-2 font-medium text-right">Δ / %</th>
