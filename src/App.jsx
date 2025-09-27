@@ -852,52 +852,6 @@ export default function App() {
   const containerRef = useRef(null);
   const [mapW, setMapW] = useState(BASE_W);
   const [mapH, setMapH] = useState(BASE_H);
-  const clampCenter = useCallback(
-    (coordinates, nextZoom = zoom) => {
-      const [lon = 0, lat = 0] = Array.isArray(coordinates) ? coordinates : [0, 0];
-      const safeZoom = Math.max(nextZoom, 1);
-
-      const clampValue = (value, limit) => {
-        const safeLimit = Math.max(limit, 0);
-        return Math.max(Math.min(value, safeLimit), -safeLimit);
-      };
-
-      const lonLimit = 180 * (1 - 1 / safeZoom) + 5;
-      const latLimit = 80 * (1 - 1 / safeZoom) + 5;
-
-      return [clampValue(lon, lonLimit), clampValue(lat, latLimit)];
-    },
-    [zoom]
-  );
-  const adjustZoom = useCallback(
-    (compute) => {
-      setZoom((prevZoom) => {
-        const rawZoom = compute(prevZoom);
-        const nextZoom = Math.max(1, Math.min(rawZoom, 8));
-        setCenter((prevCenter) => clampCenter(prevCenter, nextZoom));
-        return nextZoom;
-      });
-    },
-    [clampCenter]
-  );
-  const syncView = useCallback(
-    (coords, rawZoom) => {
-      const safeZoom = Math.max(1, Math.min(rawZoom ?? zoom, 8));
-      const safeCenter = clampCenter(coords, safeZoom);
-
-      setZoom((prevZoom) => (Math.abs(prevZoom - safeZoom) < 1e-3 ? prevZoom : safeZoom));
-      setCenter((prevCenter) => {
-        if (!prevCenter) return safeCenter;
-        const [prevLon, prevLat] = prevCenter;
-        const [nextLon, nextLat] = safeCenter;
-        if (Math.abs(prevLon - nextLon) < 1e-3 && Math.abs(prevLat - nextLat) < 1e-3) {
-          return prevCenter;
-        }
-        return safeCenter;
-      });
-    },
-    [clampCenter, zoom]
-  );
   const computedScale = useMemo(() => {
     try {
       if (worldFC && mapW && mapH) {
@@ -951,15 +905,15 @@ export default function App() {
             {error && <p className="text-xs mt-1 text-rose-600">{error}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={clear} className="gap-2">
-              Clear
-            </Button>
             <Button variant="secondary" onClick={swap} className="gap-2">
               <ArrowLeftRight className="h-4 w-4" />
               Swap
             </Button>
+            <Button variant="outline" onClick={clear} className="gap-2">
+              Clear
+            </Button>
             <span className="text-xs text-slate-500">
-              Data last updated: <span className="font-medium">{lastRefreshed ? fmtTime(lastRefreshed) : "—"}</span>
+              Last updated: <span className="font-medium">{lastRefreshed ? fmtTime(lastRefreshed) : "—"}</span>
             </span>
           </div>
         </header>
@@ -1001,16 +955,17 @@ export default function App() {
                   {worldFC ? (
                     <>
                       <div className="absolute z-10 right-2 top-2 flex flex-col gap-2">
-                        <Button variant="outline" onClick={() => adjustZoom((z) => Math.min(z * 1.5, 8))}>
+                        <Button variant="outline" onClick={() => setZoom((z) => Math.min(z * 1.5, 8))}>
                           +
                         </Button>
-                        <Button variant="outline" onClick={() => adjustZoom((z) => Math.max(z / 1.5, 1))}>
+                        <Button variant="outline" onClick={() => setZoom((z) => Math.max(z / 1.5, 1))}>
                           -
                         </Button>
                         <Button
                           variant="outline"
                           onClick={() => {
-                            syncView([0, 0], 1);
+                            setZoom(1);
+                            setCenter([0, 0]);
                           }}
                         >
                           Reset
@@ -1032,11 +987,9 @@ export default function App() {
                         <ZoomableGroup
                           zoom={zoom}
                           center={center}
-                          onMove={({ zoom: nextZoom, coordinates }) => {
-                            syncView(coordinates, nextZoom);
-                          }}
                           onMoveEnd={({ zoom: nextZoom, coordinates }) => {
-                            syncView(coordinates, nextZoom);
+                            setZoom(nextZoom);
+                            setCenter(coordinates);
                           }}
                           minZoom={1}
                           maxZoom={8}
@@ -1194,7 +1147,7 @@ export default function App() {
           </Card>
 
           {/* Stats table */}
-          <Card className="lg:col-span-4 rounded-2xl shadow-sm lg:min-w-[24rem]">
+          <Card className="lg:col-span-4 rounded-2xl shadow-sm">
             <CardContent>
               <h2 className="text-lg font-semibold mb-1">Comparison</h2>
               <div className="text-xs text-slate-500 mb-3">
@@ -1229,9 +1182,8 @@ export default function App() {
               </div>
               <div className="mt-4 text-xs text-slate-500 space-y-1">
                 <p>
-                  Source: World Bank Open Data (most recent non-null year within the last ~10 reported years per indicator). Some
-                  indicators may be missing for certain countries or latest years due to gaps in the source dataset. Year badges
-                  appear next to values; amber means older than the freshest year available for that metric.
+                  Source: World Bank Open Data (most recent non-null year within the last ~10 reported years per indicator). Year
+                  badges appear next to values; amber means older than the freshest year available for that metric.
                 </p>
                 <p>
                   Tip: Use <span className="font-medium">Swap</span> to flip A/B. <span className="font-medium">Clear</span> resets both
@@ -1241,6 +1193,10 @@ export default function App() {
             </CardContent>
           </Card>
         </section>
+
+        <footer className="mt-6 text-xs text-slate-500">
+          <p>Some indicators may be missing for certain countries or latest years due to gaps in the source dataset.</p>
+        </footer>
       </div>
     </div>
   );
