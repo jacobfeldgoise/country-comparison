@@ -1209,8 +1209,8 @@ export default function App() {
 
       if (!mapProjection || !mapDragBounds) {
         return {
-          x: position?.x ?? 0,
-          y: position?.y ?? 0,
+          x: Number.isFinite(position?.x) ? position.x : 0,
+          y: Number.isFinite(position?.y) ? position.y : 0,
           zoom: safeZoom,
         };
       }
@@ -1219,20 +1219,49 @@ export default function App() {
         bounds: [[minX, minY], [maxX, maxY]],
         width,
         height,
-        padX,
-        padY,
       } = mapDragBounds;
 
-      let nextX = Number.isFinite(position?.x) ? position.x : 0;
-      let nextY = Number.isFinite(position?.y) ? position.y : 0;
+      const clampAxisValue = (current, minCoord, maxCoord, viewport, contentSize) => {
+        if (
+          !Number.isFinite(minCoord) ||
+          !Number.isFinite(maxCoord) ||
+          !Number.isFinite(contentSize)
+        ) {
+          return Number.isFinite(current) ? current : 0;
+        }
 
-      const overflowX = Math.max(0, (width * safeZoom - mapW) / 2) + padX;
-      const overflowY = Math.max(0, (height * safeZoom - mapH) / 2) + padY;
+        const scaledSize = contentSize * safeZoom;
+        if (!Number.isFinite(scaledSize)) {
+          return Number.isFinite(current) ? current : 0;
+        }
 
-      if (nextX + safeZoom * minX < -overflowX) nextX = -overflowX - safeZoom * minX;
-      if (nextX + safeZoom * maxX > mapW + overflowX) nextX = mapW + overflowX - safeZoom * maxX;
-      if (nextY + safeZoom * minY < -overflowY) nextY = -overflowY - safeZoom * minY;
-      if (nextY + safeZoom * maxY > mapH + overflowY) nextY = mapH + overflowY - safeZoom * maxY;
+        if (scaledSize <= viewport) {
+          const centerCoord = (minCoord + maxCoord) / 2;
+          return viewport / 2 - safeZoom * centerCoord;
+        }
+
+        let minTranslate = viewport - safeZoom * maxCoord;
+        let maxTranslate = -safeZoom * minCoord;
+
+        if (!Number.isFinite(minTranslate) || !Number.isFinite(maxTranslate)) {
+          return Number.isFinite(current) ? current : 0;
+        }
+
+        if (minTranslate > maxTranslate) {
+          const mid = (minTranslate + maxTranslate) / 2;
+          minTranslate = mid;
+          maxTranslate = mid;
+        }
+
+        const base = Number.isFinite(current)
+          ? current
+          : clampNumber((minTranslate + maxTranslate) / 2, minTranslate, maxTranslate);
+
+        return clampNumber(base, minTranslate, maxTranslate);
+      };
+
+      const nextX = clampAxisValue(position?.x, minX, maxX, mapW, width);
+      const nextY = clampAxisValue(position?.y, minY, maxY, mapH, height);
 
       return {
         x: nextX,
