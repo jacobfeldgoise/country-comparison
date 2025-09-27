@@ -963,11 +963,18 @@ export default function App() {
   const skipClickRef = useRef(false);
 
   const handleMoveStart = useCallback(() => {
-    draggingRef.current = true;
-    skipClickRef.current = true;
-    setIsDraggingMap(true);
-    setHoverName("");
+    draggingRef.current = false;
+    skipClickRef.current = false;
   }, []);
+
+  const handleMove = useCallback(() => {
+    if (!draggingRef.current) {
+      draggingRef.current = true;
+      setIsDraggingMap(true);
+      setHoverName("");
+    }
+    skipClickRef.current = true;
+  }, [setHoverName, setIsDraggingMap]);
 
   const handleMoveOrZoomEnd = useCallback(
     (_, position) => {
@@ -1229,6 +1236,7 @@ export default function App() {
                           zoom={zoom}
                           center={center}
                           onMoveStart={handleMoveStart}
+                          onMove={handleMove}
                           onMoveEnd={handleMoveOrZoomEnd}
                           onZoomEnd={handleMoveOrZoomEnd}
                           minZoom={1}
