@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
-import { geoEqualEarth } from "d3-geo";
+import { geoEqualEarth, geoPath } from "d3-geo";
 import { ArrowLeftRight, Search, Info } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -213,13 +213,13 @@ const DiffCell = ({ a, b, suffix = "" }) => {
     diff > 0 ? "text-emerald-600" : diff < 0 ? "text-rose-600" : "text-slate-500";
 
   return (
-    <div className="text-sm">
+    <div className="text-sm text-right">
       <div className={`font-medium ${trendClass}`}>
         {sign}
         {display}
         {suffix}
       </div>
-      <div className="text-xs text-slate-500">{pctFmt(pct)}</div>
+      <div className="text-xs text-slate-500 text-right">{pctFmt(pct)}</div>
     </div>
   );
 };
@@ -314,7 +314,7 @@ const StatRow = ({
           {relationship === "A" && icon("lower")}
         </span>
       </td>
-      <td className="py-2">
+      <td className="py-2 pl-2 min-w-[7.5rem]">
         <DiffCell a={valueA} b={valueB} suffix={diffSuffix} />
       </td>
     </tr>
@@ -849,20 +849,148 @@ export default function App() {
   // -------------------------------------------------------------------------
   const [zoom, setZoom] = useState(1);
   const [center, setCenter] = useState([0, 0]);
+  const zoomRef = useRef(zoom);
+  const centerRef = useRef(center);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+  useEffect(() => {
+    centerRef.current = center;
+  }, [center]);
   const containerRef = useRef(null);
   const [mapW, setMapW] = useState(BASE_W);
   const [mapH, setMapH] = useState(BASE_H);
-  const computedScale = useMemo(() => {
+
+  const mapProjection = useMemo(() => {
+    const projection = geoEqualEarth().translate([mapW / 2, mapH / 2]);
     try {
-      if (worldFC && mapW && mapH) {
-        const projection = geoEqualEarth().fitSize([mapW, mapH], worldFC);
-        return projection.scale();
+      if (worldFC) {
+        projection.fitSize([mapW, mapH], worldFC);
+      } else {
+        projection.scale(150 * (mapW / BASE_W));
       }
     } catch {
-      // Fall through to default value below.
+      projection.scale(150 * (mapW / BASE_W));
     }
-    return 150 * (mapW / BASE_W);
+    return projection;
   }, [worldFC, mapW, mapH]);
+
+  const mapBounds = useMemo(() => {
+    try {
+      if (worldFC && mapProjection) {
+        const path = geoPath(mapProjection);
+        return path.bounds(worldFC);
+      }
+    } catch {
+      // ignore projection errors and fall back to the container bounds
+    }
+    return [
+      [0, 0],
+      [mapW, mapH],
+    ];
+  }, [worldFC, mapProjection, mapW, mapH]);
+
+  const clampCenter = useCallback(
+    (coordinates, rawZoom = zoomRef.current) => {
+      const safeZoom = Math.max(1, Math.min(rawZoom ?? 1, 8));
+      const [lon = 0, lat = 0] = Array.isArray(coordinates) ? coordinates : [0, 0];
+
+      if (!mapProjection?.invert) {
+        return [Math.max(-180, Math.min(180, lon)), Math.max(-90, Math.min(90, lat))];
+      }
+
+      const projected = mapProjection([lon, lat]);
+      if (!projected) {
+        return [0, 0];
+      }
+
+      const [[minX, minY], [maxX, maxY]] = mapBounds;
+      let x = mapW / 2 - projected[0] * safeZoom;
+      let y = mapH / 2 - projected[1] * safeZoom;
+
+      if (x + safeZoom * minX > mapW) x = mapW - safeZoom * minX;
+      if (x + safeZoom * maxX < 0) x = -safeZoom * maxX;
+      if (y + safeZoom * minY > mapH) y = mapH - safeZoom * minY;
+      if (y + safeZoom * maxY < 0) y = -safeZoom * maxY;
+
+      const adjustedProjected = [(mapW / 2 - x) / safeZoom, (mapH / 2 - y) / safeZoom];
+      const adjusted = mapProjection.invert(adjustedProjected);
+
+      if (!adjusted) {
+        return [Math.max(-180, Math.min(180, lon)), Math.max(-90, Math.min(90, lat))];
+      }
+
+      return [
+        Math.max(-180, Math.min(180, adjusted[0])),
+        Math.max(-90, Math.min(90, adjusted[1])),
+      ];
+    },
+    [mapBounds, mapProjection, mapW, mapH]
+  );
+
+  const setView = useCallback(
+    (nextCenter, rawZoom = zoomRef.current) => {
+      const safeZoom = Math.max(1, Math.min(rawZoom ?? 1, 8));
+      const safeCenter = clampCenter(nextCenter, safeZoom);
+
+      setZoom((prevZoom) => (Math.abs(prevZoom - safeZoom) < 1e-3 ? prevZoom : safeZoom));
+      setCenter((prevCenter) => {
+        if (!prevCenter) return safeCenter;
+        const [prevLon, prevLat] = prevCenter;
+        const [nextLon, nextLat] = safeCenter;
+        if (Math.abs(prevLon - nextLon) < 1e-3 && Math.abs(prevLat - nextLat) < 1e-3) {
+          return prevCenter;
+        }
+        return safeCenter;
+      });
+    },
+    [clampCenter]
+  );
+
+  const adjustZoom = useCallback(
+    (compute) => {
+      const nextZoom = compute(zoomRef.current);
+      setView(centerRef.current, nextZoom);
+    },
+    [setView]
+  );
+
+  const applyPosition = useCallback(
+    (position) => {
+      if (!position) return;
+      const safeZoom = Math.max(1, Math.min(position.zoom ?? zoomRef.current, 8));
+
+      if (!mapProjection?.invert) {
+        setView(centerRef.current, safeZoom);
+        return;
+      }
+
+      const [[minX, minY], [maxX, maxY]] = mapBounds;
+      let nextX = position.x ?? 0;
+      let nextY = position.y ?? 0;
+
+      if (nextX + safeZoom * minX > mapW) nextX = mapW - safeZoom * minX;
+      if (nextX + safeZoom * maxX < 0) nextX = -safeZoom * maxX;
+      if (nextY + safeZoom * minY > mapH) nextY = mapH - safeZoom * minY;
+      if (nextY + safeZoom * maxY < 0) nextY = -safeZoom * maxY;
+
+      const projectedX = (mapW / 2 - nextX) / safeZoom;
+      const projectedY = (mapH / 2 - nextY) / safeZoom;
+      const derivedCenter = mapProjection.invert([projectedX, projectedY]);
+
+      if (!derivedCenter) {
+        setView(centerRef.current, safeZoom);
+        return;
+      }
+
+      setView(derivedCenter, safeZoom);
+    },
+    [mapBounds, mapProjection, mapW, mapH, setView]
+  );
+
+  useEffect(() => {
+    setView(centerRef.current, zoomRef.current);
+  }, [mapBounds, mapProjection, setView]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -905,15 +1033,15 @@ export default function App() {
             {error && <p className="text-xs mt-1 text-rose-600">{error}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={clear} className="gap-2">
+              Clear
+            </Button>
             <Button variant="secondary" onClick={swap} className="gap-2">
               <ArrowLeftRight className="h-4 w-4" />
               Swap
             </Button>
-            <Button variant="outline" onClick={clear} className="gap-2">
-              Clear
-            </Button>
             <span className="text-xs text-slate-500">
-              Last updated: <span className="font-medium">{lastRefreshed ? fmtTime(lastRefreshed) : "—"}</span>
+              Data last updated: <span className="font-medium">{lastRefreshed ? fmtTime(lastRefreshed) : "—"}</span>
             </span>
           </div>
         </header>
@@ -955,17 +1083,16 @@ export default function App() {
                   {worldFC ? (
                     <>
                       <div className="absolute z-10 right-2 top-2 flex flex-col gap-2">
-                        <Button variant="outline" onClick={() => setZoom((z) => Math.min(z * 1.5, 8))}>
+                        <Button variant="outline" onClick={() => adjustZoom((z) => Math.min(z * 1.5, 8))}>
                           +
                         </Button>
-                        <Button variant="outline" onClick={() => setZoom((z) => Math.max(z / 1.5, 1))}>
+                        <Button variant="outline" onClick={() => adjustZoom((z) => Math.max(z / 1.5, 1))}>
                           -
                         </Button>
                         <Button
                           variant="outline"
                           onClick={() => {
-                            setZoom(1);
-                            setCenter([0, 0]);
+                            setView([0, 0], 1);
                           }}
                         >
                           Reset
@@ -978,22 +1105,14 @@ export default function App() {
                         </div>
                       )}
 
-                      <ComposableMap
-                        width={mapW}
-                        height={mapH}
-                        projection="geoEqualEarth"
-                        projectionConfig={{ scale: computedScale }}
-                      >
+                      <ComposableMap width={mapW} height={mapH} projection={mapProjection}>
                         <ZoomableGroup
                           zoom={zoom}
                           center={center}
-                          onMoveEnd={({ zoom: nextZoom, coordinates }) => {
-                            setZoom(nextZoom);
-                            setCenter(coordinates);
-                          }}
+                          onMoveEnd={(_, position) => applyPosition(position)}
+                          onZoomEnd={(_, position) => applyPosition(position)}
                           minZoom={1}
                           maxZoom={8}
-                          translateExtent={[[0, 0], [mapW, mapH]]}
                         >
                           <Geographies geography={worldFC?.features ?? []}>
                             {({ geographies }) => (
@@ -1147,7 +1266,7 @@ export default function App() {
           </Card>
 
           {/* Stats table */}
-          <Card className="lg:col-span-4 rounded-2xl shadow-sm">
+          <Card className="lg:col-span-4 rounded-2xl shadow-sm lg:min-w-[28rem] xl:min-w-[32rem]">
             <CardContent>
               <h2 className="text-lg font-semibold mb-1">Comparison</h2>
               <div className="text-xs text-slate-500 mb-3">
@@ -1160,7 +1279,7 @@ export default function App() {
                       <th className="py-2 pr-2 font-medium">Metric</th>
                       <th className="py-2 pr-2 font-medium whitespace-nowrap min-w-[8rem]">{dataA?.country || "—"}</th>
                       <th className="py-2 pr-2 font-medium whitespace-nowrap min-w-[8rem]">{dataB?.country || "—"}</th>
-                      <th className="py-2 font-medium">Δ / %</th>
+                      <th className="py-2 pl-2 font-medium whitespace-nowrap text-right min-w-[7.5rem]">Δ / %</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1182,8 +1301,9 @@ export default function App() {
               </div>
               <div className="mt-4 text-xs text-slate-500 space-y-1">
                 <p>
-                  Source: World Bank Open Data (most recent non-null year within the last ~10 reported years per indicator). Year
-                  badges appear next to values; amber means older than the freshest year available for that metric.
+                  Source: World Bank Open Data (most recent non-null year within the last ~10 reported years per indicator). Some
+                  indicators may be missing for certain countries or latest years due to gaps in the source dataset. Year badges
+                  appear next to values; amber means older than the freshest year available for that metric.
                 </p>
                 <p>
                   Tip: Use <span className="font-medium">Swap</span> to flip A/B. <span className="font-medium">Clear</span> resets both
@@ -1193,10 +1313,6 @@ export default function App() {
             </CardContent>
           </Card>
         </section>
-
-        <footer className="mt-6 text-xs text-slate-500">
-          <p>Some indicators may be missing for certain countries or latest years due to gaps in the source dataset.</p>
-        </footer>
       </div>
     </div>
   );
