@@ -81,7 +81,7 @@ const SelectItem = ({ value, children }) => <option value={value}>{children}</op
 // ---------------------------------------------------------------------------
 
 /** URL for the Natural Earth GeoJSON dataset used to draw country boundaries. */
-const geoUrl = "https://geojson.xyz/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson";
+const geoUrl = "/data/world-countries.geojson";
 
 // Base dimensions for the responsive map and related derived constants.
 const BASE_W = 960;
