@@ -547,22 +547,22 @@ const numberFmt = (value) => {
   if (!Number.isFinite(numeric)) return String(value);
 
   const absValue = Math.abs(numeric);
-  if (absValue >= 1e12) return (numeric / 1e12).toFixed(2) + "T";
-  if (absValue >= 1e9) return (numeric / 1e9).toFixed(2) + "B";
-  if (absValue >= 1e6) return (numeric / 1e6).toFixed(2) + "M";
-  if (absValue >= 1e3) return (numeric / 1e3).toFixed(2) + "K";
+  if (absValue >= 1e12) return (numeric / 1e12).toFixed(1) + "T";
+  if (absValue >= 1e9) return (numeric / 1e9).toFixed(1) + "B";
+  if (absValue >= 1e6) return (numeric / 1e6).toFixed(1) + "M";
+  if (absValue >= 1e3) return (numeric / 1e3).toFixed(1) + "K";
 
   return String(numeric);
 };
 
 /** Helper used by smallNumberFmt + pctFmt to avoid floating point noise. */
-const truncateTo = (value, digits = 2) => Math.trunc(Number(value) * 10 ** digits) / 10 ** digits;
+const truncateTo = (value, digits = 1) => Math.trunc(Number(value) * 10 ** digits) / 10 ** digits;
 
 /**
  * Produce compact decimal numbers while preserving trailing zeros only when
  * necessary.  Useful for metrics like life expectancy.
  */
-const smallNumberFmt = (value, digits = 2) => {
+const smallNumberFmt = (value, digits = 1) => {
   if (value === null || value === undefined || value === "" || Number.isNaN(Number(value))) {
     return "—";
   }
@@ -578,7 +578,7 @@ const legendFmt = (value) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return "—";
 
-  return Math.abs(numeric) >= 1e3 ? numberFmt(numeric) : smallNumberFmt(numeric, 2);
+  return Math.abs(numeric) >= 1e3 ? numberFmt(numeric) : smallNumberFmt(numeric, 1);
 };
 
 /** Format fractional values (0.2) as signed percentages (+20.0%). */
@@ -616,7 +616,7 @@ const DiffCell = ({ a, b, suffix = "" }) => {
   const pct = a !== 0 ? diff / a : null;
   const sign = diff > 0 ? "+" : diff < 0 ? "" : "";
   const abs = Math.abs(diff);
-  const display = abs >= 1000 ? numberFmt(abs) : smallNumberFmt(abs, 2);
+  const display = abs >= 1000 ? numberFmt(abs) : smallNumberFmt(abs, 1);
   const trendClass =
     diff > 0 ? "text-emerald-600" : diff < 0 ? "text-rose-600" : "text-slate-500";
 
@@ -1480,17 +1480,17 @@ export default function App() {
   useEffect(() => {
     console.group("Country Comparator - self-tests");
     try {
-      console.assert(numberFmt(1e3) === "1.00K");
-      console.assert(numberFmt(1500) === "1.50K");
-      console.assert(numberFmt(2e6) === "2.00M");
+      console.assert(numberFmt(1e3) === "1.0K");
+      console.assert(numberFmt(1500) === "1.5K");
+      console.assert(numberFmt(2e6) === "2.0M");
       console.assert(numberFmt(null) === "—");
-      console.assert(numberFmt(1.5e12) === "1.50T");
+      console.assert(numberFmt(1.5e12) === "1.5T");
 
       console.assert(pctFmt(0.1) === "+10.0%" && pctFmt(-0.25) === "-25.0%" && pctFmt(null) === "—");
       console.assert(pctFmt(0.1999) === "+19.9%");
 
-      console.assert(smallNumberFmt(1.239, 2) === "1.23" && smallNumberFmt(1.2, 2) === "1.2");
-      console.assert(smallNumberFmt(-1.239, 2) === "-1.23");
+      console.assert(smallNumberFmt(1.239, 1) === "1.2" && smallNumberFmt(1.2, 1) === "1.2");
+      console.assert(smallNumberFmt(-1.239, 1) === "-1.2");
 
       console.assert(typeof getNameProp({ NAME: "Test" }) === "string");
       console.assert(getIso3({ ISO_A3: "USA" }) === "USA" && getIso3({ iso_a3: "fra" }) === "FRA");
@@ -1502,7 +1502,7 @@ export default function App() {
       console.assert(whiteBlue(2) === "hsl(210, 70%, 58%)");
       console.assert(whiteBluePalette(5)[0] === whiteBlue(0) && whiteBluePalette(5)[4] === whiteBlue(1));
 
-      console.assert(legendFmt(12.3456) === "12.34" && legendFmt(1234) === "1.23K", "legendFmt rounding");
+      console.assert(legendFmt(12.3456) === "12.3" && legendFmt(1234) === "1.2K", "legendFmt rounding");
       if (linearStats.hasVals) {
         console.assert(
           typeof legendFmt(linearStats.min) === "string" && typeof legendFmt(linearStats.max) === "string",
