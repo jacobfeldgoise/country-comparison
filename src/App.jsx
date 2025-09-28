@@ -2213,9 +2213,11 @@ export default function App() {
                     <col className="w-[18%]" />
                   </colgroup>
                   <thead>
-                    <tr className="text-left text-xs text-slate-500 border-b">
-                      <th className="py-2 pr-2 font-medium">Metric</th>
-                      <th className="py-2 pr-2 font-medium">
+                    <tr className="text-left text-slate-600 border-b">
+                      <th className="py-2 pr-2 text-sm font-semibold text-slate-700 tracking-wide">
+                        Metric
+                      </th>
+                      <th className="py-2 pr-2 text-sm font-semibold text-slate-700">
                         <span
                           className="block whitespace-normal break-words"
                           title={countryWithFlag(dataA?.country || "—", dataA?.iso2)}
@@ -2223,7 +2225,7 @@ export default function App() {
                           {countryWithFlag(dataA?.country || "—", dataA?.iso2)}
                         </span>
                       </th>
-                      <th className="py-2 pr-2 font-medium">
+                      <th className="py-2 pr-2 text-sm font-semibold text-slate-700">
                         <span
                           className="block whitespace-normal break-words"
                           title={countryWithFlag(dataB?.country || "—", dataB?.iso2)}
@@ -2231,7 +2233,9 @@ export default function App() {
                           {countryWithFlag(dataB?.country || "—", dataB?.iso2)}
                         </span>
                       </th>
-                      <th className="py-2 pl-2 font-medium text-right">Δ / %</th>
+                      <th className="py-2 pl-2 text-sm font-semibold text-right text-slate-700 tracking-wide">
+                        Δ / %
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
