@@ -691,8 +691,8 @@ const StatRow = ({
   );
 
   const metricLabel = (
-    <div className="flex items-baseline justify-between gap-2 min-w-0">
-      <span className="truncate">{label}</span>
+    <div className="flex items-start justify-between gap-2 min-w-0">
+      <span className="flex-1 min-w-0 whitespace-normal break-words">{label}</span>
       {rowYear && defaultYear && rowYear < defaultYear ? (
         <span
           className="text-[10px] text-amber-600 shrink-0 whitespace-nowrap tabular-nums text-right"
