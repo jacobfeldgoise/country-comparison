@@ -589,6 +589,20 @@ const pctFmt = (value) => {
   return sign + truncateTo(value * 100, 1).toFixed(1) + "%";
 };
 
+/** Format absolute percentage values (20) with consistent precision. */
+const percentFmt = (value, digits = 1) => {
+  if (value === null || value === undefined || value === "") return "—";
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "—";
+
+  return truncateTo(numeric, digits)
+    .toFixed(digits)
+    .replace(/\.0+$/, "")
+    .replace(/\.$/, "")
+    .concat("%");
+};
+
 /** Present timestamps consistently with local time + 24h clock. */
 const fmtTime = (timestamp) => {
   try {
@@ -750,75 +764,183 @@ export default function App() {
   // -------------------------------------------------------------------------
   const METRICS = useMemo(
     () => [
-      { field: "population", label: "Population", code: "SP.POP.TOTL", fmt: numberFmt },
+      {
+        field: "population",
+        label: "Population",
+        code: "SP.POP.TOTL",
+        fmt: numberFmt,
+        alwaysInclude: true,
+        category: "Population & Society",
+      },
+      {
+        field: "population_growth_pct",
+        label: "Population growth (%)",
+        code: "SP.POP.GROW",
+        fmt: (value) => percentFmt(value, 2),
+        diffSuffix: "%",
+        minCoverage: 0.6,
+        category: "Population & Society",
+      },
+      {
+        field: "urban_pop_pct",
+        label: "Urban population (%)",
+        code: "SP.URB.TOTL.IN.ZS",
+        fmt: (value) => percentFmt(value, 1),
+        diffSuffix: "%",
+        minCoverage: 0.6,
+        category: "Population & Society",
+      },
+      {
+        field: "life_expectancy",
+        label: "Life expectancy (yrs)",
+        code: "SP.DYN.LE00.IN",
+        fmt: (value) => smallNumberFmt(value, 1),
+        alwaysInclude: true,
+        category: "Population & Society",
+      },
+      {
+        field: "fertility_rate",
+        label: "Fertility rate (births per woman)",
+        code: "SP.DYN.TFRT.IN",
+        fmt: (value) => smallNumberFmt(value, 1),
+        minCoverage: 0.6,
+        category: "Population & Society",
+      },
+      {
+        field: "infant_mortality_per_1000",
+        label: "Infant mortality (per 1k births)",
+        code: "SP.DYN.IMRT.IN",
+        fmt: (value) => smallNumberFmt(value, 1),
+        minCoverage: 0.6,
+        category: "Population & Society",
+      },
       {
         field: "gdp_nominal_usd",
         label: "GDP (nominal, USD)",
         code: "NY.GDP.MKTP.CD",
         fmt: (value) => "$" + numberFmt(value),
+        alwaysInclude: true,
+        category: "Economy & Trade",
       },
       {
         field: "gdp_per_capita_usd",
         label: "GDP per capita (USD)",
         code: "NY.GDP.PCAP.CD",
         fmt: (value) => "$" + numberFmt(value),
+        alwaysInclude: true,
+        category: "Economy & Trade",
       },
       {
-        field: "life_expectancy",
-        label: "Life expectancy (yrs)",
-        code: "SP.DYN.LE00.IN",
-        fmt: (value) => (value == null ? "—" : Number(value).toFixed(1)),
-      },
-      {
-        field: "co2_tonnes_per_capita",
-        label: "CO₂ per capita (t)",
-        code: "EN.ATM.CO2E.PC",
-        fmt: (value) => (value == null ? "—" : Number(value).toFixed(1)),
+        field: "gdp_growth_pct",
+        label: "GDP growth (%)",
+        code: "NY.GDP.MKTP.KD.ZG",
+        fmt: (value) => percentFmt(value, 1),
+        diffSuffix: "%",
+        minCoverage: 0.6,
+        category: "Economy & Trade",
       },
       {
         field: "unemployment_rate_pct",
         label: "Unemployment (%)",
         code: "SL.UEM.TOTL.ZS",
-        fmt: (value) => (value == null ? "—" : Number(value).toFixed(1) + "%"),
+        fmt: (value) => percentFmt(value, 1),
         diffSuffix: "%",
+        minCoverage: 0.6,
+        category: "Economy & Trade",
       },
       {
         field: "inflation_cpi_pct",
         label: "Inflation (CPI, %)",
         code: "FP.CPI.TOTL.ZG",
-        fmt: (value) => (value == null ? "—" : Number(value).toFixed(1) + "%"),
+        fmt: (value) => percentFmt(value, 1),
         diffSuffix: "%",
-      },
-      { field: "area_km2", label: "Area (km²)", code: "AG.SRF.TOTL.K2", fmt: numberFmt },
-      {
-        field: "internet_users_pct",
-        label: "Internet users (%)",
-        code: "IT.NET.USER.ZS",
-        fmt: (value) => (value == null ? "—" : Number(value).toFixed(1) + "%"),
-        diffSuffix: "%",
+        minCoverage: 0.6,
+        category: "Economy & Trade",
       },
       {
-        field: "urban_pop_pct",
-        label: "Urban population (%)",
-        code: "SP.URB.TOTL.IN.ZS",
-        fmt: (value) => (value == null ? "—" : Number(value).toFixed(1) + "%"),
-        diffSuffix: "%",
+        field: "exports_usd",
+        label: "Exports (USD)",
+        code: "NE.EXP.GNFS.CD",
+        fmt: (value) => "$" + numberFmt(value),
+        minCoverage: 0.5,
+        category: "Economy & Trade",
+      },
+      {
+        field: "imports_usd",
+        label: "Imports (USD)",
+        code: "NE.IMP.GNFS.CD",
+        fmt: (value) => "$" + numberFmt(value),
+        minCoverage: 0.5,
+        category: "Economy & Trade",
       },
       {
         field: "health_exp_gdp_pct",
         label: "Health expenditure (% GDP)",
         code: "SH.XPD.CHEX.GD.ZS",
-        fmt: (value) => (value == null ? "—" : Number(value).toFixed(1) + "%"),
+        fmt: (value) => percentFmt(value, 1),
         diffSuffix: "%",
+        minCoverage: 0.5,
+        category: "Health",
       },
-      { field: "exports_usd", label: "Exports (USD)", code: "NE.EXP.GNFS.CD", fmt: (value) => "$" + numberFmt(value) },
-      { field: "imports_usd", label: "Imports (USD)", code: "NE.IMP.GNFS.CD", fmt: (value) => "$" + numberFmt(value) },
+      {
+        field: "health_exp_per_capita_usd",
+        label: "Health expenditure per capita (USD)",
+        code: "SH.XPD.CHEX.PC.CD",
+        fmt: (value) => (value == null ? "—" : "$" + numberFmt(value)),
+        minCoverage: 0.5,
+        category: "Health",
+      },
+      {
+        field: "access_to_electricity_pct",
+        label: "Access to electricity (%)",
+        code: "EG.ELC.ACCS.ZS",
+        fmt: (value) => percentFmt(value, 1),
+        diffSuffix: "%",
+        minCoverage: 0.6,
+        category: "Infrastructure & Connectivity",
+      },
+      {
+        field: "internet_users_pct",
+        label: "Internet users (%)",
+        code: "IT.NET.USER.ZS",
+        fmt: (value) => percentFmt(value, 1),
+        diffSuffix: "%",
+        minCoverage: 0.5,
+        category: "Infrastructure & Connectivity",
+      },
+      {
+        field: "mobile_subscriptions_per_100",
+        label: "Mobile subscriptions (per 100)",
+        code: "IT.CEL.SETS.P2",
+        fmt: (value) => smallNumberFmt(value, 1),
+        minCoverage: 0.6,
+        category: "Infrastructure & Connectivity",
+      },
+      {
+        field: "area_km2",
+        label: "Area (km²)",
+        code: "AG.SRF.TOTL.K2",
+        fmt: numberFmt,
+        alwaysInclude: true,
+        category: "Environment & Land",
+      },
+      {
+        field: "forest_area_pct",
+        label: "Forest area (%)",
+        code: "AG.LND.FRST.ZS",
+        fmt: (value) => percentFmt(value, 1),
+        diffSuffix: "%",
+        minCoverage: 0.6,
+        category: "Environment & Land",
+      },
       {
         field: "renewables_pct",
         label: "Renewables electricity (%)",
         code: "EG.ELC.RNEW.ZS",
-        fmt: (value) => (value == null ? "—" : Number(value).toFixed(1) + "%"),
+        fmt: (value) => percentFmt(value, 1),
         diffSuffix: "%",
+        minCoverage: 0.4,
+        category: "Environment & Land",
       },
     ],
     []
@@ -1030,25 +1152,178 @@ export default function App() {
   const dataA = codeA ? dataByIso3.get(codeA.toUpperCase()) : null;
   const dataB = codeB ? dataByIso3.get(codeB.toUpperCase()) : null;
 
+  const coverageByField = useMemo(() => {
+    const stats = {};
+    const total = activeRows.length;
+    const hasRows = total > 0;
+
+    METRICS.forEach((metric) => {
+      stats[metric.field] = { count: 0, ratio: hasRows ? 0 : null };
+    });
+
+    if (!hasRows) return stats;
+
+    for (const row of activeRows) {
+      METRICS.forEach((metric) => {
+        const value = row?.[metric.field];
+        if (typeof value === "number" && !Number.isNaN(value)) {
+          stats[metric.field].count += 1;
+        }
+      });
+    }
+
+    METRICS.forEach((metric) => {
+      const entry = stats[metric.field];
+      entry.ratio = total > 0 ? entry.count / total : null;
+    });
+
+    return stats;
+  }, [activeRows, METRICS]);
+
+  const curatedMetrics = useMemo(
+    () =>
+      METRICS.filter((metric) => {
+        if (metric.alwaysInclude) return true;
+
+        const ratio = coverageByField[metric.field]?.ratio;
+        const min = metric.minCoverage ?? 0;
+        if (ratio == null) return true;
+        return ratio >= min;
+      }),
+    [METRICS, coverageByField]
+  );
+
+  const suppressedMetrics = useMemo(
+    () =>
+      METRICS.filter((metric) => {
+        if (metric.alwaysInclude) return false;
+        const ratio = coverageByField[metric.field]?.ratio;
+        const min = metric.minCoverage ?? 0;
+        return typeof ratio === "number" && ratio < min;
+      }),
+    [METRICS, coverageByField]
+  );
+
+  const curatedMetricFields = useMemo(
+    () => curatedMetrics.map((metric) => metric.field),
+    [curatedMetrics]
+  );
+
   const metrics = useMemo(() => {
-    const base = METRICS.map((metric) => metric.field);
-    const found = new Set(base);
+    const found = new Set(curatedMetricFields);
 
     for (const row of activeRows) {
       for (const [key, value] of Object.entries(row)) {
         if (["iso3", "country", "__years"].includes(key)) continue;
-        if (typeof value === "number" && !Number.isNaN(value)) {
-          found.add(key);
+        if (typeof value !== "number" || Number.isNaN(value)) continue;
+
+        if (!found.has(key)) {
+          const ratio = coverageByField[key]?.ratio;
+          const min = METRICS.find((metric) => metric.field === key)?.minCoverage ?? 0;
+          if (ratio == null || typeof ratio !== "number" || ratio >= min) {
+            found.add(key);
+          }
         }
       }
     }
 
     return Array.from(found);
-  }, [METRICS, activeRows]);
+  }, [activeRows, curatedMetricFields, coverageByField, METRICS]);
 
-  const labelFor = (field) => METRICS.find((metric) => metric.field === field)?.label || field;
-  const fmtFor = (field) => METRICS.find((metric) => metric.field === field)?.fmt || numberFmt;
-  const diffSuffixFor = (field) => METRICS.find((metric) => metric.field === field)?.diffSuffix || "";
+  const findMetricConfig = (field) => METRICS.find((metric) => metric.field === field);
+
+  const labelFor = (field) => {
+    if (!field) return "";
+    return findMetricConfig(field)?.label || field;
+  };
+
+  const fmtFor = (field) => {
+    if (!field) return numberFmt;
+    return findMetricConfig(field)?.fmt || numberFmt;
+  };
+
+  const diffSuffixFor = (field) => {
+    if (!field) return "";
+    return findMetricConfig(field)?.diffSuffix || "";
+  };
+
+  const metricGroups = useMemo(() => {
+    if (!metrics.length) return [];
+
+    const curatedSet = new Set(curatedMetrics.map((metric) => metric.field));
+    const groups = [];
+    const groupMap = new Map();
+
+    const ensureGroup = (title, order) => {
+      const key = title || "Additional metrics";
+      if (groupMap.has(key)) {
+        const existing = groupMap.get(key);
+        existing.order = Math.min(existing.order, order);
+        return existing;
+      }
+
+      const group = { title: key, order, metrics: [] };
+      groupMap.set(key, group);
+      groups.push(group);
+      return group;
+    };
+
+    const pushMetric = (metric, order) => {
+      const group = ensureGroup(metric.category, order);
+      group.metrics.push({
+        field: metric.field,
+        label: metric.label || metric.field,
+        fmt: metric.fmt || numberFmt,
+        diffSuffix: metric.diffSuffix || "",
+      });
+    };
+
+    curatedMetrics.forEach((metric, index) => {
+      pushMetric(metric, index);
+    });
+
+    metrics.forEach((field, index) => {
+      if (curatedSet.has(field)) return;
+
+      const config = METRICS.find((metric) => metric.field === field);
+      pushMetric(
+        {
+          field,
+          label: config?.label || field,
+          category: config?.category || "Additional metrics",
+          fmt: config?.fmt || numberFmt,
+          diffSuffix: config?.diffSuffix || "",
+        },
+        curatedMetrics.length + index
+      );
+    });
+
+    return groups.sort((a, b) => a.order - b.order);
+  }, [metrics, curatedMetrics, METRICS]);
+
+  const hiddenMetricLabels = useMemo(() => {
+    if (!suppressedMetrics.length) return [];
+
+    return suppressedMetrics
+      .map((metric) => {
+        const stats = coverageByField[metric.field];
+        if (!stats || typeof stats.ratio !== "number") return null;
+        const count = stats.count;
+        return `${metric.label} (${count} countries)`;
+      })
+      .filter(Boolean);
+  }, [suppressedMetrics, coverageByField]);
+
+  useEffect(() => {
+    if (!metrics.length) {
+      if (colorMetric !== null) setColorMetric(null);
+      return;
+    }
+
+    if (!colorMetric || !metrics.includes(colorMetric)) {
+      setColorMetric(metrics[0]);
+    }
+  }, [metrics, colorMetric]);
 
   const latestYearByField = useMemo(() => {
     const result = {};
@@ -1071,6 +1346,8 @@ export default function App() {
   }, [latestYearByField]);
 
   const valueStats = useMemo(() => {
+    if (!colorMetric) return { vals: [], thresholds: [], palette: [] };
+
     const values = activeRows
       .map((row) => row[colorMetric])
       .filter((value) => typeof value === "number" && !Number.isNaN(value))
@@ -1094,6 +1371,8 @@ export default function App() {
   }, [activeRows, colorMetric]);
 
   const linearStats = useMemo(() => {
+    if (!colorMetric) return { min: 0, max: 0, hasVals: false, range: 0 };
+
     const values = activeRows
       .map((row) => row[colorMetric])
       .filter((value) => typeof value === "number" && !Number.isNaN(value));
@@ -1107,6 +1386,7 @@ export default function App() {
 
   const colorFor = useCallback(
     (value) => {
+      if (!colorMetric) return whiteBlue(0);
       if (typeof value !== "number" || Number.isNaN(value)) return whiteBlue(0);
 
       if (colorScaleMode === "quantile") {
@@ -1663,7 +1943,7 @@ export default function App() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-slate-500">Color by</span>
-                  <Select value={colorMetric} onChange={setColorMetric} className="w-64">
+                  <Select value={colorMetric || ""} onChange={setColorMetric} className="w-64" disabled={!metrics.length}>
                     {metrics.map((metric) => (
                       <SelectItem key={metric} value={metric}>
                         {labelFor(metric)}
@@ -1677,6 +1957,12 @@ export default function App() {
                   </Select>
                 </div>
               </div>
+
+              {hiddenMetricLabels.length > 0 ? (
+                <p className="text-xs text-slate-500 mb-3">
+                  Hidden due to limited data: {hiddenMetricLabels.join(", ")}
+                </p>
+              ) : null}
 
               <div className="border rounded-2xl overflow-hidden">
                 <div className="relative w-full" ref={containerRef}>
@@ -1927,9 +2213,11 @@ export default function App() {
                     <col className="w-[18%]" />
                   </colgroup>
                   <thead>
-                    <tr className="text-left text-xs text-slate-500 border-b">
-                      <th className="py-2 pr-2 font-medium">Metric</th>
-                      <th className="py-2 pr-2 font-medium">
+                    <tr className="text-left text-slate-600 border-b">
+                      <th className="py-2 pr-2 text-sm font-semibold text-slate-700 tracking-wide">
+                        Metric
+                      </th>
+                      <th className="py-2 pr-2 text-sm font-semibold text-slate-700">
                         <span
                           className="block whitespace-normal break-words"
                           title={countryWithFlag(dataA?.country || "—", dataA?.iso2)}
@@ -1937,7 +2225,7 @@ export default function App() {
                           {countryWithFlag(dataA?.country || "—", dataA?.iso2)}
                         </span>
                       </th>
-                      <th className="py-2 pr-2 font-medium">
+                      <th className="py-2 pr-2 text-sm font-semibold text-slate-700">
                         <span
                           className="block whitespace-normal break-words"
                           title={countryWithFlag(dataB?.country || "—", dataB?.iso2)}
@@ -1945,21 +2233,35 @@ export default function App() {
                           {countryWithFlag(dataB?.country || "—", dataB?.iso2)}
                         </span>
                       </th>
-                      <th className="py-2 pl-2 font-medium text-right">Δ / %</th>
+                      <th className="py-2 pl-2 text-sm font-semibold text-right text-slate-700 tracking-wide">
+                        Δ / %
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {metrics.map((metric) => (
-                      <StatRow
-                        key={metric}
-                        label={labelFor(metric)}
-                        field={metric}
-                        dataA={dataA}
-                        dataB={dataB}
-                        fmt={fmtFor(metric)}
-                        diffSuffix={diffSuffixFor(metric)}
-                        defaultYear={defaultYear}
-                      />
+                    {metricGroups.map((group, groupIndex) => (
+                      <React.Fragment key={group.title}>
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className={`${groupIndex === 0 ? "pt-3" : "pt-5"} pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}
+                          >
+                            {group.title}
+                          </td>
+                        </tr>
+                        {group.metrics.map((metric) => (
+                          <StatRow
+                            key={metric.field}
+                            label={metric.label}
+                            field={metric.field}
+                            dataA={dataA}
+                            dataB={dataB}
+                            fmt={metric.fmt}
+                            diffSuffix={metric.diffSuffix}
+                            defaultYear={defaultYear}
+                          />
+                        ))}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
