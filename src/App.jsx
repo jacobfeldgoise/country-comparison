@@ -770,34 +770,7 @@ export default function App() {
         code: "SP.POP.TOTL",
         fmt: numberFmt,
         alwaysInclude: true,
-      },
-      {
-        field: "gdp_nominal_usd",
-        label: "GDP (nominal, USD)",
-        code: "NY.GDP.MKTP.CD",
-        fmt: (value) => "$" + numberFmt(value),
-        alwaysInclude: true,
-      },
-      {
-        field: "gdp_per_capita_usd",
-        label: "GDP per capita (USD)",
-        code: "NY.GDP.PCAP.CD",
-        fmt: (value) => "$" + numberFmt(value),
-        alwaysInclude: true,
-      },
-      {
-        field: "life_expectancy",
-        label: "Life expectancy (yrs)",
-        code: "SP.DYN.LE00.IN",
-        fmt: (value) => smallNumberFmt(value, 1),
-        alwaysInclude: true,
-      },
-      {
-        field: "area_km2",
-        label: "Area (km²)",
-        code: "AG.SRF.TOTL.K2",
-        fmt: numberFmt,
-        alwaysInclude: true,
+        category: "Population & Society",
       },
       {
         field: "population_growth_pct",
@@ -806,51 +779,7 @@ export default function App() {
         fmt: (value) => percentFmt(value, 2),
         diffSuffix: "%",
         minCoverage: 0.6,
-      },
-      {
-        field: "gdp_growth_pct",
-        label: "GDP growth (%)",
-        code: "NY.GDP.MKTP.KD.ZG",
-        fmt: (value) => percentFmt(value, 1),
-        diffSuffix: "%",
-        minCoverage: 0.6,
-      },
-      {
-        field: "fertility_rate",
-        label: "Fertility rate (births per woman)",
-        code: "SP.DYN.TFRT.IN",
-        fmt: (value) => smallNumberFmt(value, 1),
-        minCoverage: 0.6,
-      },
-      {
-        field: "infant_mortality_per_1000",
-        label: "Infant mortality (per 1k births)",
-        code: "SP.DYN.IMRT.IN",
-        fmt: (value) => smallNumberFmt(value, 1),
-        minCoverage: 0.6,
-      },
-      {
-        field: "access_to_electricity_pct",
-        label: "Access to electricity (%)",
-        code: "EG.ELC.ACCS.ZS",
-        fmt: (value) => percentFmt(value, 1),
-        diffSuffix: "%",
-        minCoverage: 0.6,
-      },
-      {
-        field: "internet_users_pct",
-        label: "Internet users (%)",
-        code: "IT.NET.USER.ZS",
-        fmt: (value) => percentFmt(value, 1),
-        diffSuffix: "%",
-        minCoverage: 0.5,
-      },
-      {
-        field: "mobile_subscriptions_per_100",
-        label: "Mobile subscriptions (per 100)",
-        code: "IT.CEL.SETS.P2",
-        fmt: (value) => smallNumberFmt(value, 1),
-        minCoverage: 0.6,
+        category: "Population & Society",
       },
       {
         field: "urban_pop_pct",
@@ -859,6 +788,56 @@ export default function App() {
         fmt: (value) => percentFmt(value, 1),
         diffSuffix: "%",
         minCoverage: 0.6,
+        category: "Population & Society",
+      },
+      {
+        field: "life_expectancy",
+        label: "Life expectancy (yrs)",
+        code: "SP.DYN.LE00.IN",
+        fmt: (value) => smallNumberFmt(value, 1),
+        alwaysInclude: true,
+        category: "Population & Society",
+      },
+      {
+        field: "fertility_rate",
+        label: "Fertility rate (births per woman)",
+        code: "SP.DYN.TFRT.IN",
+        fmt: (value) => smallNumberFmt(value, 1),
+        minCoverage: 0.6,
+        category: "Population & Society",
+      },
+      {
+        field: "infant_mortality_per_1000",
+        label: "Infant mortality (per 1k births)",
+        code: "SP.DYN.IMRT.IN",
+        fmt: (value) => smallNumberFmt(value, 1),
+        minCoverage: 0.6,
+        category: "Population & Society",
+      },
+      {
+        field: "gdp_nominal_usd",
+        label: "GDP (nominal, USD)",
+        code: "NY.GDP.MKTP.CD",
+        fmt: (value) => "$" + numberFmt(value),
+        alwaysInclude: true,
+        category: "Economy & Trade",
+      },
+      {
+        field: "gdp_per_capita_usd",
+        label: "GDP per capita (USD)",
+        code: "NY.GDP.PCAP.CD",
+        fmt: (value) => "$" + numberFmt(value),
+        alwaysInclude: true,
+        category: "Economy & Trade",
+      },
+      {
+        field: "gdp_growth_pct",
+        label: "GDP growth (%)",
+        code: "NY.GDP.MKTP.KD.ZG",
+        fmt: (value) => percentFmt(value, 1),
+        diffSuffix: "%",
+        minCoverage: 0.6,
+        category: "Economy & Trade",
       },
       {
         field: "unemployment_rate_pct",
@@ -867,6 +846,7 @@ export default function App() {
         fmt: (value) => percentFmt(value, 1),
         diffSuffix: "%",
         minCoverage: 0.6,
+        category: "Economy & Trade",
       },
       {
         field: "inflation_cpi_pct",
@@ -875,6 +855,23 @@ export default function App() {
         fmt: (value) => percentFmt(value, 1),
         diffSuffix: "%",
         minCoverage: 0.6,
+        category: "Economy & Trade",
+      },
+      {
+        field: "exports_usd",
+        label: "Exports (USD)",
+        code: "NE.EXP.GNFS.CD",
+        fmt: (value) => "$" + numberFmt(value),
+        minCoverage: 0.5,
+        category: "Economy & Trade",
+      },
+      {
+        field: "imports_usd",
+        label: "Imports (USD)",
+        code: "NE.IMP.GNFS.CD",
+        fmt: (value) => "$" + numberFmt(value),
+        minCoverage: 0.5,
+        category: "Economy & Trade",
       },
       {
         field: "health_exp_gdp_pct",
@@ -883,6 +880,7 @@ export default function App() {
         fmt: (value) => percentFmt(value, 1),
         diffSuffix: "%",
         minCoverage: 0.5,
+        category: "Health",
       },
       {
         field: "health_exp_per_capita_usd",
@@ -890,20 +888,41 @@ export default function App() {
         code: "SH.XPD.CHEX.PC.CD",
         fmt: (value) => (value == null ? "—" : "$" + numberFmt(value)),
         minCoverage: 0.5,
+        category: "Health",
       },
       {
-        field: "exports_usd",
-        label: "Exports (USD)",
-        code: "NE.EXP.GNFS.CD",
-        fmt: (value) => "$" + numberFmt(value),
-        minCoverage: 0.5,
+        field: "access_to_electricity_pct",
+        label: "Access to electricity (%)",
+        code: "EG.ELC.ACCS.ZS",
+        fmt: (value) => percentFmt(value, 1),
+        diffSuffix: "%",
+        minCoverage: 0.6,
+        category: "Infrastructure & Connectivity",
       },
       {
-        field: "imports_usd",
-        label: "Imports (USD)",
-        code: "NE.IMP.GNFS.CD",
-        fmt: (value) => "$" + numberFmt(value),
+        field: "internet_users_pct",
+        label: "Internet users (%)",
+        code: "IT.NET.USER.ZS",
+        fmt: (value) => percentFmt(value, 1),
+        diffSuffix: "%",
         minCoverage: 0.5,
+        category: "Infrastructure & Connectivity",
+      },
+      {
+        field: "mobile_subscriptions_per_100",
+        label: "Mobile subscriptions (per 100)",
+        code: "IT.CEL.SETS.P2",
+        fmt: (value) => smallNumberFmt(value, 1),
+        minCoverage: 0.6,
+        category: "Infrastructure & Connectivity",
+      },
+      {
+        field: "area_km2",
+        label: "Area (km²)",
+        code: "AG.SRF.TOTL.K2",
+        fmt: numberFmt,
+        alwaysInclude: true,
+        category: "Environment & Land",
       },
       {
         field: "forest_area_pct",
@@ -912,6 +931,7 @@ export default function App() {
         fmt: (value) => percentFmt(value, 1),
         diffSuffix: "%",
         minCoverage: 0.6,
+        category: "Environment & Land",
       },
       {
         field: "renewables_pct",
@@ -920,6 +940,7 @@ export default function App() {
         fmt: (value) => percentFmt(value, 1),
         diffSuffix: "%",
         minCoverage: 0.4,
+        category: "Environment & Land",
       },
     ],
     []
@@ -1225,6 +1246,60 @@ export default function App() {
     if (!field) return "";
     return findMetricConfig(field)?.diffSuffix || "";
   };
+
+  const metricGroups = useMemo(() => {
+    if (!metrics.length) return [];
+
+    const curatedSet = new Set(curatedMetrics.map((metric) => metric.field));
+    const groups = [];
+    const groupMap = new Map();
+
+    const ensureGroup = (title, order) => {
+      const key = title || "Additional metrics";
+      if (groupMap.has(key)) {
+        const existing = groupMap.get(key);
+        existing.order = Math.min(existing.order, order);
+        return existing;
+      }
+
+      const group = { title: key, order, metrics: [] };
+      groupMap.set(key, group);
+      groups.push(group);
+      return group;
+    };
+
+    const pushMetric = (metric, order) => {
+      const group = ensureGroup(metric.category, order);
+      group.metrics.push({
+        field: metric.field,
+        label: metric.label || metric.field,
+        fmt: metric.fmt || numberFmt,
+        diffSuffix: metric.diffSuffix || "",
+      });
+    };
+
+    curatedMetrics.forEach((metric, index) => {
+      pushMetric(metric, index);
+    });
+
+    metrics.forEach((field, index) => {
+      if (curatedSet.has(field)) return;
+
+      const config = METRICS.find((metric) => metric.field === field);
+      pushMetric(
+        {
+          field,
+          label: config?.label || field,
+          category: config?.category || "Additional metrics",
+          fmt: config?.fmt || numberFmt,
+          diffSuffix: config?.diffSuffix || "",
+        },
+        curatedMetrics.length + index
+      );
+    });
+
+    return groups.sort((a, b) => a.order - b.order);
+  }, [metrics, curatedMetrics, METRICS]);
 
   const hiddenMetricLabels = useMemo(() => {
     if (!suppressedMetrics.length) return [];
@@ -2160,17 +2235,29 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {metrics.map((metric) => (
-                      <StatRow
-                        key={metric}
-                        label={labelFor(metric)}
-                        field={metric}
-                        dataA={dataA}
-                        dataB={dataB}
-                        fmt={fmtFor(metric)}
-                        diffSuffix={diffSuffixFor(metric)}
-                        defaultYear={defaultYear}
-                      />
+                    {metricGroups.map((group, groupIndex) => (
+                      <React.Fragment key={group.title}>
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className={`${groupIndex === 0 ? "pt-0" : "pt-5"} pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500`}
+                          >
+                            {group.title}
+                          </td>
+                        </tr>
+                        {group.metrics.map((metric) => (
+                          <StatRow
+                            key={metric.field}
+                            label={metric.label}
+                            field={metric.field}
+                            dataA={dataA}
+                            dataB={dataB}
+                            fmt={metric.fmt}
+                            diffSuffix={metric.diffSuffix}
+                            defaultYear={defaultYear}
+                          />
+                        ))}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
