@@ -491,6 +491,21 @@ const getIso3 = (props) => {
 const getNameProp = (props) =>
   props?.NAME ?? props?.name ?? props?.NAME_LONG ?? props?.name_long ?? props?.ADMIN ?? "";
 
+/** Extract an ISO-2 country code from GeoJSON properties when available. */
+const getIso2 = (props) => {
+  const iso2 =
+    props?.ISO_A2 ??
+    props?.iso_a2 ??
+    props?.ISO_A2_EH ??
+    props?.iso_a2_eh ??
+    props?.WB_A2 ??
+    props?.wb_a2;
+
+  if (!iso2 || iso2 === "-99") return null;
+  const normalized = String(iso2).toUpperCase();
+  return normalized.length === 2 ? normalized : null;
+};
+
 /** Convert a two-letter ISO code into its corresponding flag emoji. */
 const iso2ToFlagEmoji = (iso2) => {
   if (!iso2 || typeof iso2 !== "string" || iso2.length !== 2) return "";
@@ -870,11 +885,15 @@ export default function App() {
         .map((feature) => {
           const iso = getIso3(feature.properties);
           const name = getNameProp(feature.properties);
-          return iso ? { iso3: iso, country: name } : null;
+          const iso2 = getIso2(feature.properties);
+          return iso ? { iso3: iso, iso2: iso2 || null, country: name } : null;
         })
         .filter(Boolean);
 
       const geoNameMap = new Map(geoCountries.map((country) => [country.iso3, country.country]));
+      const geoIso2Map = new Map(
+        geoCountries.filter((country) => country.iso2).map((country) => [country.iso3, country.iso2])
+      );
 
       if (Array.isArray(features) && features.length > 0) {
         setWorldFC(featureCollection);
@@ -926,7 +945,7 @@ export default function App() {
         .map((iso) => {
           const row = {
             iso3: iso,
-            iso2: wbIso2Map.get(iso) || null,
+            iso2: wbIso2Map.get(iso) || geoIso2Map.get(iso) || null,
             country: nameMap.get(iso) || iso,
             __years: {},
           };
@@ -1736,9 +1755,10 @@ export default function App() {
                                             return;
                                           }
                                           const fallbackName = getNameProp(geo.properties);
+                                          const fallbackIso2 = getIso2(geo.properties);
                                           const display = countryWithFlag(
                                             row?.country || fallbackName,
-                                            row?.iso2 || null
+                                            row?.iso2 || fallbackIso2 || null
                                           );
                                           setHoverName(display || fallbackName || "");
                                         }}
