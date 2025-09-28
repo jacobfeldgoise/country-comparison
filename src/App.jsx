@@ -1136,18 +1136,34 @@ export default function App() {
     return map;
   }, [activeRows]);
 
+  const countryHasData = useCallback(
+    (row) => {
+      if (!row) return false;
+
+      for (const metric of METRICS) {
+        const value = row?.[metric.field];
+        if (typeof value === "number" && !Number.isNaN(value)) {
+          return true;
+        }
+      }
+
+      return false;
+    },
+    [METRICS]
+  );
+
   const countryList = useMemo(() => {
     const seen = new Set();
     const unique = [];
 
     for (const row of dataByIso3.values()) {
-      if (!row?.iso3 || seen.has(row.iso3)) continue;
+      if (!row?.iso3 || seen.has(row.iso3) || !countryHasData(row)) continue;
       seen.add(row.iso3);
       unique.push({ iso3: row.iso3, iso2: row.iso2 || null, country: row.country || row.iso3 });
     }
 
     return unique.sort((a, b) => a.country.localeCompare(b.country));
-  }, [dataByIso3]);
+  }, [countryHasData, dataByIso3]);
 
   const dataA = codeA ? dataByIso3.get(codeA.toUpperCase()) : null;
   const dataB = codeB ? dataByIso3.get(codeB.toUpperCase()) : null;
@@ -2011,8 +2027,8 @@ export default function App() {
                               <>
                                 {geographies.map((geo) => {
                                   const iso3 = getIso3(geo.properties);
-                                  const disabled = !iso3;
-                                  const row = !disabled ? dataByIso3.get(iso3) : null;
+                                  const row = iso3 ? dataByIso3.get(iso3) : null;
+                                  const disabled = !iso3 || !countryHasData(row);
                                   const selectedLabel = !disabled && iso3 === codeA ? "A" : !disabled && iso3 === codeB ? "B" : null;
                                   const fillColor = disabled
                                     ? whiteBlue(0.05)
