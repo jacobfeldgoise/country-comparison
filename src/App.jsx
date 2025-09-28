@@ -691,14 +691,17 @@ const StatRow = ({
   );
 
   const metricLabel = (
-    <span className="inline-flex items-center gap-2">
-      <span>{label}</span>
+    <div className="flex items-start justify-between gap-2 min-w-0">
+      <span className="flex-1 min-w-0 whitespace-normal break-words">{label}</span>
       {rowYear && defaultYear && rowYear < defaultYear ? (
-        <span className="text-[10px] text-amber-600" title={`Older data: ${rowYear} (default ${defaultYear})`}>
+        <span
+          className="text-[10px] text-amber-600 shrink-0 whitespace-nowrap tabular-nums text-right"
+          title={`Older data: ${rowYear} (default ${defaultYear})`}
+        >
           ({rowYear})
         </span>
       ) : null}
-    </span>
+    </div>
   );
 
   const highlightA = relationship === "A" ? "bg-emerald-50/30" : relationship === "B" ? "bg-rose-50/30" : "";
@@ -1928,7 +1931,7 @@ export default function App() {
                       <th className="py-2 pr-2 font-medium">Metric</th>
                       <th className="py-2 pr-2 font-medium">
                         <span
-                          className="block truncate"
+                          className="block whitespace-normal break-words"
                           title={countryWithFlag(dataA?.country || "—", dataA?.iso2)}
                         >
                           {countryWithFlag(dataA?.country || "—", dataA?.iso2)}
@@ -1936,7 +1939,7 @@ export default function App() {
                       </th>
                       <th className="py-2 pr-2 font-medium">
                         <span
-                          className="block truncate"
+                          className="block whitespace-normal break-words"
                           title={countryWithFlag(dataB?.country || "—", dataB?.iso2)}
                         >
                           {countryWithFlag(dataB?.country || "—", dataB?.iso2)}
